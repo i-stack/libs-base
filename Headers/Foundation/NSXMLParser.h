@@ -14,7 +14,7 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
@@ -36,7 +36,7 @@
 extern "C" {
 #endif
 
-@class NSData, NSDictionary, NSError, NSString, NSURL;
+@class NSData, NSDictionary, NSError, NSInputStream, NSString, NSURL;
 
 /**
  * Domain for errors
@@ -67,6 +67,7 @@ GS_EXPORT NSString* const NSXMLParserErrorDomain;
  *   to handle the parsing process.
  * </p>
  */
+GS_EXPORT_CLASS
 @interface NSXMLParser : NSObject
 {
 #if	GS_EXPOSE(NSXMLParser)
@@ -100,12 +101,17 @@ GS_EXPORT NSString* const NSXMLParserErrorDomain;
 /**
  * Convenience method fetching data from anURL.<br />
  */
-- (id) initWithContentsOfURL: (NSURL*)anURL;
+- (instancetype) initWithContentsOfURL: (NSURL*)anURL;
 
 /** <init />
  * Initialises the parser with the specified xml data.
  */
-- (id) initWithData: (NSData*)data;
+- (instancetype) initWithData: (NSData*)data;
+
+/**
+ * Initialises the parser with the specified input stream.
+ */
+- (instancetype) initWithStream: (NSInputStream*)stream;
 
 /**
  * Parses the supplied data and returns YES on success, NO otherwise.

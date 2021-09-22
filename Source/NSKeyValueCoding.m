@@ -13,12 +13,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSKeyValueCoding informal protocol reference</title>
    $Date$ $Revision$
@@ -40,12 +40,6 @@
  */
 #include "NSKeyValueMutableArray.m"
 #include "NSKeyValueMutableSet.m"
-
-/* For backward compatibility NSUndefinedKeyException is actually the same
- * as the older NSUnknownKeyException
- */
-NSString* const NSUnknownKeyException = @"NSUnknownKeyException";
-NSString* const NSUndefinedKeyException = @"NSUnknownKeyException";
 
 
 /* this should move into autoconf once it's accepted */
@@ -91,8 +85,8 @@ SetValueForKey(NSObject *self, id anObject, const char *key, unsigned size)
       char		lo;
       char		hi;
 
-      strncpy(buf, "_set", 4);
-      strncpy(&buf[4], key, size);
+      memcpy(buf, "_set", 4);
+      memcpy(&buf[4], key, size);
       lo = buf[4];
       hi = islower(lo) ? toupper(lo) : lo;
       buf[4] = hi;
@@ -163,8 +157,8 @@ static id ValueForKey(NSObject *self, const char *key, unsigned size)
       char		lo;
       char		hi;
 
-      strncpy(buf, "_get", 4);
-      strncpy(&buf[4], key, size);
+      memcpy(buf, "_get", 4);
+      memcpy(&buf[4], key, size);
       buf[size + 4] = '\0';
       lo = buf[4];
       hi = islower(lo) ? toupper(lo) : lo;
@@ -474,12 +468,12 @@ static id ValueForKey(NSObject *self, const char *key, unsigned size)
       SEL		sel;
       BOOL		(*imp)(id,SEL,id*,id*);
 
-      strncpy(name, "validate", 8);
+      memcpy(name, "validate", 8);
       [aKey getCString: &name[8]
 	     maxLength: size + 1
 	      encoding: NSUTF8StringEncoding];
       size = strlen(&name[8]);
-      strncpy(&name[size + 8], ":error:", 7);
+      memcpy(&name[size + 8], ":error:", 7);
       name[size + 15] = '\0';
       if (islower(name[8]))
 	{
@@ -611,12 +605,12 @@ static id ValueForKey(NSObject *self, const char *key, unsigned size)
       char		lo;
       char		hi;
 
-      strncpy(buf, "_get", 4);
+      memcpy(buf, "_get", 4);
       [aKey getCString: key
 	     maxLength: size + 1
 	      encoding: NSUTF8StringEncoding];
       size = strlen(key);
-      strncpy(&buf[4], key, size);
+      memcpy(&buf[4], key, size);
       buf[size + 4] = '\0';
       lo = buf[4];
       hi = islower(lo) ? toupper(lo) : lo;
@@ -696,12 +690,12 @@ static id ValueForKey(NSObject *self, const char *key, unsigned size)
       char		lo;
       char		hi;
 
-      strncpy(buf, "_set", 4);
+      memcpy(buf, "_set", 4);
       [aKey getCString: key
 	     maxLength: size + 1
 	      encoding: NSUTF8StringEncoding];
       size = strlen(key);
-      strncpy(&buf[4], key, size);
+      memcpy(&buf[4], key, size);
       buf[size + 4] = '\0';
       lo = buf[4];
       hi = islower(lo) ? toupper(lo) : lo;
@@ -819,8 +813,8 @@ static id ValueForKey(NSObject *self, const char *key, unsigned size)
       char		lo;
       char		hi;
 
-      strncpy(buf, "_set", 4);
-      strncpy(&buf[4], key, size);
+      memcpy(buf, "_set", 4);
+      memcpy(&buf[4], key, size);
       lo = buf[4];
       hi = islower(lo) ? toupper(lo) : lo;
       buf[4] = hi;

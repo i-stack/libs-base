@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSPortNameServer class reference</title>
 
@@ -44,6 +44,7 @@ extern "C" {
 
 @class	NSPort, NSString, NSMutableArray;
 
+GS_EXPORT_CLASS
 @interface	NSPortNameServer : NSObject
 + (id) systemDefaultPortNameServer;
 - (NSPort*) portForName: (NSString*)name;
@@ -54,6 +55,7 @@ extern "C" {
 - (BOOL) removePortForName: (NSString*)name;
 @end
 
+GS_EXPORT_CLASS
 @interface NSSocketPortNameServer : NSPortNameServer
 {
 #if	GS_EXPOSE(NSSocketPortNameServer)
@@ -79,6 +81,7 @@ extern "C" {
 @end
 
 
+GS_EXPORT_CLASS
 @interface NSMessagePortNameServer : NSPortNameServer
 + (id) sharedInstance;
 

@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __NSNetServices_h_GNUSTEP_BASE_INCLUDE
@@ -355,7 +355,7 @@ GS_EXPORT NSString * const NSNetServicesErrorDomain;
  *   superclass for concrete implementations of its functionality.
  * </p>
  */
-
+GS_EXPORT_CLASS
 @interface NSNetService : NSObject
 {
 #if	GS_EXPOSE(NSNetService)
@@ -441,7 +441,7 @@ GS_EXPORT NSString * const NSNetServicesErrorDomain;
  *   functionality.
  * </p>
  */
-
+GS_EXPORT_CLASS
 @interface NSNetServiceBrowser : NSObject
 {
 #if	GS_EXPOSE(NSNetServiceBrowser)

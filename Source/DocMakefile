@@ -187,7 +187,10 @@ Base_AGSDOC_FLAGS = \
 	-TypedefsTemplate TypesAndConstants \
 	-VariablesTemplate TypesAndConstants \
 	-WordMap '{\
+	GS_EXPORT_CLASS="";\
 	GS_PRIVATE_INTERNAL="//";\
+	DEFINE_BLOCK_TYPE="//";\
+	WEAK_ATTRIBUTE="";\
 	WINAPI="";\
 	}' -Up Base
 
@@ -204,6 +207,7 @@ BaseAdditions_AGSDOC_FLAGS = \
 	-TypedefsTemplate TypesAndConstants \
 	-VariablesTemplate TypesAndConstants \
 	-WordMap '{\
+	GS_EXPORT_CLASS="";\
 	GS_PRIVATE_INTERNAL="//";\
 	WINAPI="";\
 	}' -Up BaseAdditions

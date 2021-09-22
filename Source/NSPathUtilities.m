@@ -18,12 +18,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSPathUtilities function reference</title>
    $Date$ $Revision$
@@ -902,7 +902,7 @@ addDefaults(NSString *defs, NSMutableDictionary *conf)
     }
 }
 
-NSMutableDictionary*
+GS_DECLARE NSMutableDictionary*
 GNUstepConfig(NSDictionary *newConfig)
 {
   static NSDictionary	*config = nil;
@@ -1087,7 +1087,7 @@ GNUstepConfig(NSDictionary *newConfig)
   return AUTORELEASE([config mutableCopy]);
 }
 
-void
+GS_DECLARE void
 GNUstepUserConfig(NSMutableDictionary *config, NSString *userName)
 {
 #ifdef HAVE_GETEUID
@@ -1592,7 +1592,7 @@ ParseConfigurationFile(NSString *fileName, NSMutableDictionary *dict,
 
 
 /* See NSPathUtilities.h for description */
-void
+GS_DECLARE void
 GSSetUserName(NSString *aName)
 {
   NSCParameterAssert([aName length] > 0);
@@ -1634,7 +1634,7 @@ GSSetUserName(NSString *aName)
  * If you change the behavior of this method you must also change
  * user_home.c in the makefiles package to match.
  */
-NSString *
+GS_DECLARE NSString *
 NSUserName(void)
 {
 #if defined(_WIN32)
@@ -1716,7 +1716,7 @@ NSUserName(void)
  * Return the caller's home directory as an NSString object.
  * Calls NSHomeDirectoryForUser() to do this.
  */
-NSString *
+GS_DECLARE NSString *
 NSHomeDirectory(void)
 {
   return NSHomeDirectoryForUser(NSUserName());
@@ -1735,12 +1735,14 @@ NSHomeDirectory(void)
  * If you change the behavior of this method you must also change
  * user_home.c in the makefiles package to match.
  */
-NSString *
+GS_DECLARE NSString *
 NSHomeDirectoryForUser(NSString *loginName)
 {
   NSString	*s = nil;
 
-#if !defined(_WIN32)
+#ifdef __ANDROID__
+  s = [[NSProcessInfo processInfo] androidFilesDir];
+#elif !defined(_WIN32)
 #if     defined(HAVE_GETPWNAM_R)
   struct passwd pw;
   struct passwd *p;
@@ -1818,7 +1820,7 @@ NSHomeDirectoryForUser(NSString *loginName)
   return s;
 }
 
-NSString *
+GS_DECLARE NSString *
 NSFullUserName(void)
 {
   if (theFullUserName == nil)
@@ -1882,7 +1884,7 @@ NSFullUserName(void)
  * This examines the GNUSTEP_USER_CONFIG_FILE for the specified user,
  * with settings in it over-riding those in the main GNUstep.conf.
  */
-NSString *
+GS_DECLARE NSString *
 GSDefaultsRootForUser(NSString *userName)
 {
   NSString *defaultsDir;
@@ -1924,39 +1926,54 @@ GSDefaultsRootForUser(NSString *userName)
   return defaultsDir;
 }
 
-NSArray *
+GS_DECLARE NSArray *
 NSStandardApplicationPaths(void)
 {
   return NSSearchPathForDirectoriesInDomains(NSAllApplicationsDirectory,
                                              NSAllDomainsMask, YES);
 }
 
-NSArray *
+GS_DECLARE NSArray *
 NSStandardLibraryPaths(void)
 {
   return NSSearchPathForDirectoriesInDomains(NSAllLibrariesDirectory,
                                              NSAllDomainsMask, YES);
 }
 
-NSString *
+GS_DECLARE NSString *
 NSTemporaryDirectory(void)
 {
   NSFileManager	*manager;
   NSString	*tempDirName;
   NSString	*baseTempDirName = nil;
+  BOOL		flag;
+#if !defined(_WIN32)
   NSDictionary	*attr;
   int		perm;
   int		owner;
-  BOOL		flag;
-#if	!defined(_WIN32)
+#if !defined(__ANDROID__)
   int		uid;
-#else
-  unichar buffer[1024];
+#endif
+#endif
 
+#if defined(_WIN32)
+  unichar buffer[1024];
   if (GetTempPathW(1024, buffer))
     {
       baseTempDirName = [NSString stringWithCharacters: buffer
 						length: wcslen(buffer)];
+    }
+#elif defined(__ANDROID__)
+  /*
+   * Use subfolder of cache directory as temp dir on Android, as there
+   * is no official temp dir prior to API level 26, and the cache dir
+   * is at least auto-purged by the system if disk space is needed.
+   * We also clean it up on launch in GSInitializeProcessAndroid().
+   */
+  NSString *cacheDir = [[NSProcessInfo processInfo] androidCacheDir];
+  if (cacheDir)
+    {
+      baseTempDirName = [cacheDir stringByAppendingPathComponent: @"tmp"];
     }
 #endif
 
@@ -2002,9 +2019,30 @@ NSTemporaryDirectory(void)
   if ([manager fileExistsAtPath: tempDirName isDirectory: &flag] == NO
     || flag == NO)
     {
+#ifdef __ANDROID__
+      /*
+       * Create our own temp dir on Android. We can disregard attributes
+       * since they are not supported.
+       */
+      if ([manager createDirectoryAtPath: tempDirName
+             withIntermediateDirectories: YES
+                              attributes: nil
+                                   error: NULL] == NO)
+        {
+          NSWarnFLog(@"Attempt to create temporary directory (%@)"
+            @" failed.", tempDirName);
+          return nil;
+        }
+#else
       NSWarnFLog(@"Temporary directory (%@) does not exist", tempDirName);
       return nil;
+#endif
     }
+
+// Mateu Batle: secure temporary directories don't work in MinGW
+// Ivan Vucica: there are also problems with Cygwin
+//              probable cause: http://stackoverflow.com/q/9561759/39974
+#if !defined(_WIN32) && !defined(__CYGWIN__) && !defined(__ANDROID__)
 
   /*
    * Check that we are the directory owner, and that we, and nobody else,
@@ -2016,20 +2054,11 @@ NSTemporaryDirectory(void)
   perm = [[attr objectForKey: NSFilePosixPermissions] intValue];
   perm = perm & 0777;
 
-// Mateu Batle: secure temporary directories don't work in MinGW
-// Ivan Vucica: there are also problems with Cygwin
-//              probable cause: http://stackoverflow.com/q/9561759/39974
-#if !defined(_WIN32) && !defined(__CYGWIN__)
-
-#if	defined(_WIN32)
-  uid = owner;
-#else
 #ifdef HAVE_GETEUID
   uid = geteuid();
 #else
   uid = getuid();
 #endif /* HAVE_GETEUID */
-#endif
   if ((perm != 0700 && perm != 0600) || owner != uid)
     {
       NSString	*secure;
@@ -2090,7 +2119,7 @@ NSTemporaryDirectory(void)
   return tempDirName;
 }
 
-NSString *
+GS_DECLARE NSString *
 NSOpenStepRootDirectory(void)
 {
   NSString	*root;
@@ -2105,9 +2134,9 @@ NSOpenStepRootDirectory(void)
   return root;
 }
 
-#if	defined(_WIN32)
-/* The developer root on a windows system (where we have an msys environment
- * set up) is the point in the filesystem where we can reference make.exe via
+#if	defined(__MINGW__)
+/* The developer root under MinGW (where we have an MSYS environment set up)
+ * is the point in the filesystem where we can reference make.exe via
  * msys/.../bin/.  That is, it's the windows path at which msys is installed.
  */
 static NSString*
@@ -2115,7 +2144,7 @@ devroot(NSFileManager *manager, NSString *path)
 {
   NSString      *tmp = @"";
 
-  while (NO == [tmp isEqual: path])
+  while (path && NO == [tmp isEqual: path])
     {
       NSString	*pb;
       NSString	*msys;
@@ -2155,7 +2184,7 @@ devroot(NSFileManager *manager, NSString *path)
 }
 #endif
 
-NSArray *
+GS_DECLARE NSArray *
 NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory directoryKey,
   NSSearchPathDomainMask domainMask, BOOL expandTilde)
 {
@@ -2294,7 +2323,7 @@ if (domainMask & mask) \
 
       case NSDeveloperDirectory:
 	{
-#if	defined(_WIN32)
+#if	defined(__MINGW__)
           if (nil == gnustepDeveloperDir)
             {
               NSString          *path = nil;
@@ -2470,12 +2499,17 @@ L"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\GNUstep",
 
       case NSCachesDirectory:
 	{
+#ifdef __ANDROID__
+	  /* Use system-provided cache directory on Android */
+	  ADD_PATH(NSUserDomainMask, [[NSProcessInfo processInfo] androidCacheDir], @"");
+#else
 	  /* Uff - at the moment the only place to put Caches seems to
 	   * be Library.  Unfortunately under GNU/Linux Library will
 	   * end up in /usr/lib/GNUstep which could be mounted
 	   * read-only!
 	   */
 	  ADD_PATH(NSUserDomainMask, gnustepUserLibrary, @"Caches");
+#endif
 	  ADD_PATH(NSLocalDomainMask, gnustepLocalLibrary, @"Caches");
 	  ADD_PATH(NSNetworkDomainMask, gnustepNetworkLibrary, @"Caches");
 	  ADD_PATH(NSSystemDomainMask, gnustepSystemLibrary, @"Caches");

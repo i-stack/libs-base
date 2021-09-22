@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */
 
 #ifndef __NSDecimalNumber_h_GNUSTEP_BASE_INCLUDE
@@ -119,6 +119,7 @@ extern "C" {
  *  passing an instance as an argument to any [NSDecimalNumber] method ending
  *  with <code>...Behavior:</code>.
  */
+GS_EXPORT_CLASS
 @interface	NSDecimalNumberHandler : NSObject <NSDecimalNumberBehaviors>
 {
 #if	GS_EXPOSE(NSDecimalNumberHandler)
@@ -187,6 +188,7 @@ extern "C" {
  *
  *  <p>Note that instances of <code>NSDecimalNumber</code> are immutable.</p>
  */
+GS_EXPORT_CLASS
 @interface	NSDecimalNumber : NSNumber <NSDecimalNumberBehaviors>
 {
 #if	GS_EXPOSE(NSDecimalNumber)

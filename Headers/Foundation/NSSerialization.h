@@ -16,12 +16,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __NSSerialization_h_GNUSTEP_BASE_INCLUDE
@@ -70,6 +70,7 @@ extern "C" {
  *  representation of a property list (NSArray or NSDictionary plus limited
  *  contents).</p>
  */
+GS_EXPORT_CLASS
 @interface NSSerializer: NSObject
 
 /**
@@ -129,6 +130,7 @@ extern "C" {
  *  property list (NSArray or NSDictionary plus limited contents) from a
  *  byte-array (actually string) representation.
  */
+GS_EXPORT_CLASS
 @interface NSDeserializer: NSObject
 
 /**

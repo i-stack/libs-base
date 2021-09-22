@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */
 
 #ifndef __NSUserNotification_h_INCLUDE
@@ -54,6 +54,7 @@ enum
 typedef NSInteger NSUserNotificationActivationType;
 
 
+GS_EXPORT_CLASS
 @interface NSUserNotification : NSObject <NSCopying>
 {
 #if	GS_EXPOSE(NSUserNotification)
@@ -93,6 +94,7 @@ typedef NSInteger NSUserNotificationActivationType;
 
 GS_EXPORT NSString * const NSUserNotificationDefaultSoundName;
 
+GS_EXPORT_CLASS
 @interface NSUserNotificationCenter : NSObject
 {
 #if	GS_EXPOSE(NSUserNotificationCenter)

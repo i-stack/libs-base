@@ -16,12 +16,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSData class reference</title>
    $Date$ $Revision$
@@ -242,6 +242,40 @@ readContentsOfFile(NSString *path, void **buf, off_t *len, NSZone *zone)
   void		*tmp = 0;
   int		c;
   off_t         fileLength;
+  
+#ifdef __ANDROID__
+  // Android: try using asset manager if path is in main bundle resources
+  AAsset *asset = [NSBundle assetForPath: path withMode: AASSET_MODE_BUFFER];
+  if (asset)
+    {
+      fileLength = AAsset_getLength(asset);
+
+      tmp = NSZoneMalloc(zone, fileLength);
+      if (tmp == 0)
+	{
+	  NSLog(@"Malloc failed for file (%@) of length %jd - %@", path,
+	    (intmax_t)fileLength, [NSError _last]);
+	  AAsset_close(asset);
+	  goto failure;
+	}
+
+      int result = AAsset_read(asset, tmp, fileLength);
+      AAsset_close(asset);
+      
+      if (result < 0)
+	{
+	  NSWarnFLog(@"read of file (%@) contents failed - %@", path,
+	    [NSError errorWithDomain: NSPOSIXErrorDomain
+				code: result
+			    userInfo: nil]);
+	  goto failure;
+	}
+      
+      *buf = tmp;
+      *len = fileLength;
+      return YES;
+    }
+#endif /* __ANDROID__ */
 
 #if defined(_WIN32)
   thePath = (const unichar*)[path fileSystemRepresentation];
@@ -475,6 +509,11 @@ failure:
  */
 @implementation NSData
 
+- (NSUInteger) sizeOfContentExcluding: (NSHashTable*)exclude
+{
+  return [self length];
+}
+
 + (void) initialize
 {
   if (self == [NSData class])
@@ -656,6 +695,7 @@ failure:
   unsigned char	*dst;
   unsigned char	buf[4];
   unsigned	pos = 0;
+  NSZone	*zone = [self zone];
 
   if (nil == base64Data)
     {
@@ -674,7 +714,7 @@ failure:
   src = (const unsigned char*)[base64Data bytes];
   end = &src[length];
 
-  result = (unsigned char*)malloc(declen);
+  result = NSZoneMalloc(zone, declen);
   dst = result;
 
   while (src != end)
@@ -779,7 +819,7 @@ failure:
        */
       if ((((declen - length) * 100) / declen) > 5)
         {
-          result = realloc(result, length);
+	  result = NSZoneRealloc(zone, result, length);
         }
     }
   return [self initWithBytesNoCopy: result length: length freeWhenDone: YES];
@@ -1041,6 +1081,122 @@ failure:
   [self getBytes: buffer range: aRange];
 
   return [NSData dataWithBytesNoCopy: buffer length: aRange.length];
+}
+
+/**
+ * Finds and returns the range of the first occurrence of the given data, within the given range, subject to given options.
+ */
+- (NSRange) rangeOfData: (NSData *)dataToFind
+                options: (NSDataSearchOptions)mask
+                  range: (NSRange)searchRange
+{
+  NSUInteger  length = [self length];
+  NSUInteger  countOther = [dataToFind length];
+  const void* bytesSelf = [self bytes];
+  const void* bytesOther = [dataToFind bytes];
+  NSRange     result;
+
+  GS_RANGE_CHECK(searchRange, length);
+  if (dataToFind == nil)
+    [NSException raise: NSInvalidArgumentException format: @"range of nil"];
+
+  /* Zero length data is always found at the start of the given range.
+   */
+  if (0 == countOther)
+    {
+      if ((mask & NSDataSearchBackwards) == NSDataSearchBackwards)
+        {
+          searchRange.location += searchRange.length;
+        }
+      searchRange.length = 0;
+      return searchRange;
+    }
+
+  if (searchRange.length < countOther)
+    {
+      /* Range to search is smaller than data to look for.
+       */
+      result = NSMakeRange(NSNotFound, 0);
+    }
+  else
+    {
+      if ((mask & NSDataSearchAnchored) == NSDataSearchAnchored
+        || searchRange.length == countOther)
+        {
+          /* Range to search is same size as data to look for.
+           */
+          if ((mask & NSDataSearchBackwards) == NSDataSearchBackwards)
+            {
+              searchRange.location = NSMaxRange(searchRange) - countOther;
+              searchRange.length = countOther;
+            }
+          else
+            {
+              searchRange.length = countOther;
+            }
+          if (memcmp(bytesSelf + searchRange.location, bytesOther,
+	    countOther) == 0)
+            {
+              result = searchRange;
+            }
+          else
+            {
+              result = NSMakeRange(NSNotFound, 0);
+            }
+        }
+      else
+        {
+          /* Range to search is bigger than data to look for.
+           */
+
+          NSUInteger pos;
+          NSUInteger end;
+
+          end = searchRange.length - countOther + 1;
+          if ((mask & NSDataSearchBackwards) == NSDataSearchBackwards)
+            {
+              pos = end;
+            }
+          else
+            {
+              pos = 0;
+            }
+
+          if ((mask & NSDataSearchBackwards) == NSDataSearchBackwards)
+            {
+              while (pos-- > 0)
+                {
+                  if (memcmp(bytesSelf + searchRange.location + pos,
+		    bytesOther, countOther) == 0)
+                    {
+                      break;
+                    }
+                }
+            }
+          else
+            {
+              while (pos < end)
+                {
+                  if (memcmp(bytesSelf + searchRange.location + pos,
+		    bytesOther, countOther) == 0)
+                    {
+                      break;
+                    }
+                  pos++;
+                }
+            }
+
+          if (pos >= end)
+            {
+              result = NSMakeRange(NSNotFound, 0);
+            }
+          else
+            {
+              result = NSMakeRange(searchRange.location + pos, countOther);
+            }
+        }
+    }
+  return result;
 }
 
 - (NSData *) base64EncodedDataWithOptions: (NSDataBase64EncodingOptions)options
@@ -1372,7 +1528,7 @@ failure:
 	  *(double*)data = NSSwapBigDoubleToHost(nd);
 	  return;
 	}
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
       case _C_BOOL:
 	{
 	  [self deserializeBytes: data
@@ -1748,9 +1904,11 @@ failure:
 	{
 	  /*
 	   * We have created a new file - so we attempt to make it's
-	   * attributes match that of the original.
+	   * attributes match that of the original (except for those
+	   * we can't reasonably set).
 	   */
 	  [att removeObjectForKey: NSFileSize];
+	  [att removeObjectForKey: NSFileCreationDate];
 	  [att removeObjectForKey: NSFileModificationDate];
 	  [att removeObjectForKey: NSFileReferenceCount];
 	  [att removeObjectForKey: NSFileSystemNumber];
@@ -1759,10 +1917,21 @@ failure:
 	  [att removeObjectForKey: NSFileType];
 	  if ([mgr changeFileAttributes: att atPath: path] == NO)
 	    {
-	      NSWarnMLog(@"Unable to correctly set all attributes for '%@'",
-		path);
+	      NSWarnMLog(@"Unable to correctly set attributes for '%@' to %@",
+		path, att);
 	    }
 	}
+#ifdef HAVE_GETEUID
+      else if (geteuid() == 0 && [@"root" isEqualToString: NSUserName()] == NO)
+	{
+	  att = [NSDictionary dictionaryWithObjectsAndKeys:
+	    NSFileOwnerAccountName, NSUserName(), nil];
+	  if ([mgr changeFileAttributes: att atPath: path] == NO)
+	    {
+	      NSWarnMLog(@"Unable to correctly set ownership for '%@'", path);
+	    }
+	}
+#endif
     }
 
   /* success: */
@@ -1814,10 +1983,16 @@ failure:
     {
       int	desc;
       int	mask;
+      int	length;
 
-      strncpy(thePath, theRealPath, sizeof(thePath) - 1);
-      thePath[sizeof(thePath) - 1] = '\0';
-      strncat(thePath, "XXXXXX", 6);
+      length = strlen(theRealPath);
+      if (length > sizeof(thePath) - 7)
+	{
+	  length = sizeof(thePath) - 7;
+	} 
+      memcpy(thePath, theRealPath, length);
+      memcpy(thePath + length, "XXXXXX", 6);
+      thePath[length + 6] = '\0';
       if ((desc = mkstemp(thePath)) < 0)
 	{
           NSWarnMLog(@"mkstemp (%s) failed - %@", thePath, [NSError _last]);
@@ -1922,6 +2097,7 @@ failure:
 	   * attributes match that of the original.
 	   */
 	  [mAtt removeObjectForKey: NSFileSize];
+	  [mAtt removeObjectForKey: NSFileCreationDate];
 	  [mAtt removeObjectForKey: NSFileModificationDate];
 	  [mAtt removeObjectForKey: NSFileReferenceCount];
 	  [mAtt removeObjectForKey: NSFileSystemNumber];
@@ -1930,19 +2106,21 @@ failure:
 	  [mAtt removeObjectForKey: NSFileType];
 	  if ([mgr changeFileAttributes: mAtt atPath: path] == NO)
 	    {
-	      NSWarnMLog(@"Unable to correctly set all attributes for '%@'",
-		path);
+	      NSWarnMLog(@"Unable to correctly set attributes for '%@' to %@",
+		path, mAtt);
 	    }
 	}
+#ifdef HAVE_GETEUID
       else if (geteuid() == 0 && [@"root" isEqualToString: NSUserName()] == NO)
 	{
 	  att = [NSDictionary dictionaryWithObjectsAndKeys:
-			NSFileOwnerAccountName, NSUserName(), nil];
+	    NSFileOwnerAccountName, NSUserName(), nil];
 	  if ([mgr changeFileAttributes: att atPath: path] == NO)
 	    {
 	      NSWarnMLog(@"Unable to correctly set ownership for '%@'", path);
 	    }
 	}
+#endif
     }
 
   /* success: */
@@ -1976,17 +2154,6 @@ failure:
       return [url setResourceData: self];
     }
   return NO;
-}
-
-- (NSUInteger) sizeInBytesExcluding: (NSHashTable*)exclude
-{
-  NSUInteger    size = [super sizeInBytesExcluding: exclude];
-
-  if (size > 0)
-    {
-      size += [self length];
-    }
-  return size;
 }
 
 @end
@@ -2112,6 +2279,11 @@ failure:
     }
 }
 
+- (NSUInteger) sizeOfContentExcluding: (NSHashTable*)exclude
+{
+  return [self capacity];
+}
+
 + (id) data
 {
   NSMutableData	*d;
@@ -2138,6 +2310,19 @@ failure:
 
   d = [mutableDataMalloc allocWithZone: NSDefaultMallocZone()];
   d = [d initWithBytesNoCopy: bytes length: length];
+  return AUTORELEASE(d);
+}
+
++ (id) dataWithBytesNoCopy: (void*)aBuffer
+		    length: (NSUInteger)bufferSize
+	      freeWhenDone: (BOOL)shouldFree
+{
+  NSData	*d;
+
+  d = [mutableDataMalloc allocWithZone: NSDefaultMallocZone()];
+  d = [d initWithBytesNoCopy: aBuffer
+		      length: bufferSize
+		freeWhenDone: shouldFree];
   return AUTORELEASE(d);
 }
 
@@ -2656,7 +2841,7 @@ failure:
 	  [self appendBytes: &nd length: sizeof(NSSwappedDouble)];
 	  return;
 	}
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
       case _C_BOOL:
 	[self appendBytes: data length: sizeof(_Bool)];
 	return;
@@ -3135,7 +3320,7 @@ getBytes(void* dst, void* src, unsigned len, unsigned limit, unsigned *pos)
 	  *(double*)data = NSSwapBigDoubleToHost(nd);
 	  return;
 	}
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
       case _C_BOOL:
 	{
 	  getBytes(data, bytes, sizeof(_Bool), length, cursor);
@@ -3291,13 +3476,6 @@ getBytes(void* dst, void* src, unsigned len, unsigned limit, unsigned *pos)
     }
 }
 
-- (NSUInteger) sizeInBytesExcluding: (NSHashTable*)exclude
-{
-  NSUInteger    size = GSPrivateMemorySize(self, exclude);
-
-  return size;
-}
-
 @end
 
 
@@ -3372,17 +3550,6 @@ getBytes(void* dst, void* src, unsigned len, unsigned limit, unsigned *pos)
   GSClassSwizzle(self, dataBlock);
   ASSIGN(deallocator, (id)deallocBlock);
   return self;
-}
-
-- (NSUInteger) sizeInBytesExcluding: (NSHashTable*)exclude
-{
-  NSUInteger    size = GSPrivateMemorySize(self, exclude);
-
-  if (size > 0)
-    {
-      size += length;
-    }
-  return size;
 }
 
 @end
@@ -3684,8 +3851,8 @@ getBytes(void* dst, void* src, unsigned len, unsigned limit, unsigned *pos)
     {
       if (bufferSize > 0)
 	{
-	  [NSException raise: NSInvalidArgumentException
-	    format: @"[%@-initWithBytesNoCopy:length:freeWhenDone:] called with "
+	  [NSException raise: NSInvalidArgumentException format:
+	    @"[%@-initWithBytesNoCopy:length:freeWhenDone:] called with "
 	    @"length but null bytes", NSStringFromClass([self class])];
 	}
       self = [self initWithCapacity: bufferSize];
@@ -4034,7 +4201,7 @@ getBytes(void* dst, void* src, unsigned len, unsigned limit, unsigned *pos)
 	  (*appendImp)(self, appendSel, &nd, sizeof(NSSwappedDouble));
 	  return;
 	}
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
       case _C_BOOL:
 	(*appendImp)(self, appendSel, data, sizeof(_Bool));
 	return;
@@ -4232,17 +4399,6 @@ getBytes(void* dst, void* src, unsigned len, unsigned limit, unsigned *pos)
       memset(bytes + length, '\0', size - length);
     }
   length = size;
-}
-
-- (NSUInteger) sizeInBytesExcluding: (NSHashTable*)exclude
-{
-  NSUInteger    size = GSPrivateMemorySize(self, exclude);
-
-  if (size > 0)
-    {
-      size += capacity;
-    }
-  return size;
 }
 
 @end

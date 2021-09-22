@@ -1,3 +1,2423 @@
+2021-09-16 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSJSONSerialization.m:
+	* Source/NSURL.m:
+	Fix minor potential leaks.
+
+2021-08-27 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/nstzfile.h: deleted (merged into tzdb.h)
+	* Source/tzdb.h: updated (includes nstzfile.h)
+	* Source/NSTimeZone.h: some cleanups
+	Tidies up as suggested by Fred
+
+2021-08-14 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/nstzfile.h: Fix by Emmanuel Dreyfus - increase number of
+	transitions allowed, so that we can handle dates further into the
+	future (since v2+ files support that).
+	* Tests/base/NSTimeZone/ParisV1-noMagic.tzdb:
+	* Tests/base/NSTimeZone/ParisV1.tzdb:
+	* Tests/base/NSTimeZone/ParisV2-missingHeader.tzdb:
+	* Tests/base/NSTimeZone/ParisV2.tzdb:
+	* Tests/base/NSTimeZone/localtime.m:
+	Increase the range of testcases
+
+2021-08-11 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/tzdb.h: Public domain time zone file parsing etc
+	* Source/NSTimeZone.m: Use code from tzdb.h
+	* Headers/Foundation/NSTimeZone.h: Remove some obsolete comments
+	* configure.ac:  check for stdbool.h needed by tzdb.h
+	* configure: regenerate
+	* Headers/GNUstepBase/config.h.in: define for stdbool check
+	* Tests/base/NSTimeZone/Paris.tzdbv1: test timezone file (version 1)
+	* Tests/base/NSTimeZone/Paris.tzdbv2: test timezone file (version 2)
+	* Tests/base/NSTimeZone/localtime.m: Some testcases for v1/v2
+	Incorporate work by Emmanuel Dreyfus to use public domain tzfile
+	parsing code supporting times too large to fit in 32bit value.
+	The public domain code has some support for the Posix TZ environment
+	variable style string used by version2 to support times after the last
+	transition in the file, but I'm not convinced it works properly, so
+	this may need to be revisited.
+
+2021-08-10 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSObject:
+	* Source/NSProcessInfo.m:
+	* Source/NSSocketPort.m:
+	* Source:libgnustep-base-entry.m:
+	Initialize Windows Sockets in NSObject only and update to Windows
+	Socket version 2.2.
+
+2021-08-03 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/GNUstepBase/config.h.in:
+	* configure:
+	* configure.ac:
+	Use pkgconfig to find libxslt.
+
+2021-07-29 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/GNUstepBase/config.h.in:
+	* Source/Additions/Unicode.m:
+	* Source/GSICUString.h:
+	* Source/NSCalendar.m:
+	* Source/NSDateFormatter.m:
+	* Source/NSLocale.m:
+	* Source/NSNumberFormatter.m:
+	* Source/NSPredicate.m:
+	* Source/NSRegularExpression.m:
+	* Source/NSString.m:
+	* Source/NSTimeZone.m:
+	* configure:
+	* configure.ac:
+	Add support for using ICU DLL from Windows 10.
+
+2021-07-29 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSTimeZone.m:
+	* Headers/GNUstepBase/config.h.in:
+	* configure.ac:
+	* configure:
+	Always use builtin header for parsing posix time zone files, so we
+	know that the field names are consistent and so we knw we have a
+	define for the file magic number.
+
+2021-07-26 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSXMLParser.m:
+	Fix error caused by having methods in category for strict parser
+	overriding methods provided by sloppy parser.
+
+2021-07-22 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/nstzfile.h:
+	* Source/NSTimeZone.m:
+	Changes to add support for 64bit transitions used by v2+ of the
+	timezone format.
+
+2021-07-14 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSLock.h:
+	* Headers/Foundation/NSThread.h:
+	* Headers/GNUstepBase/GSConfig.h.in:
+	* Headers/GNUstepBase/config.h.in:
+	* Source/Additions/GCObject.m:
+	* Source/Additions/GSObjCRuntime.m:
+	* Source/Additions/Unicode.m:
+	* Source/GSAtomic.h:
+	* Source/GSFFCallInvocation.m:
+	* Source/GSFFIInvocation.m:
+	* Source/GSPThread.h:
+	* Source/NSArray.m:
+	* Source/NSCharacterSet.m:
+	* Source/NSDebug.m:
+	* Source/NSException.m:
+	* Source/NSLock.m:
+	* Source/NSObject.m:
+	* Source/NSScanner.m:
+	* Source/NSString.m:
+	* Source/NSThread.m:
+	* Source/NSTimeZone.m:
+	* Source/NSZone.m:
+	* Tests/base/NSThread/GNUmakefile.preamble:
+	* Tests/base/NSThread/late_unregister.m:
+	* Tests/base/NSThread/lazy_thread.m:
+	* config/config.initialize.m:
+	* configure:
+	* configure.ac:
+	Use native threading and locking APIs on Windows, removing dependency
+	on pthread library and using fast Slim Reader/Writer (SRW) locks for
+	NSLock/NSRecursiveLock/NSCondition/NSConditionLock as well as all
+	internal locks. Adds GS_MUTEX_*() macros in GSPThread.h, that are being
+	used for all internal locking instead of pthread APIs.
+	Also adds support for thread priorities on Windows, fixes method
+	signature of +[NSThread setThreadPriority:] to match Apple platforms,
+	and adds error handling in same method.
+
+2021-07-16 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/GSICUString.h:
+	* Source/GSICUString.m:
+	Fix possible memory corruption in string handling that occured
+	primarily when using NSRegularExpression with strings longer than
+	16 characters.
+
+2021-07-02 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/Additions/Unicode.m:
+	Fix possible heap corruption when converting to
+	NSNonLossyASCIIStringEncoding.
+
+2021-06-19 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/Foundation/Port.h:
+	* Source/NSSocketPort.m:
+	Extend the API for TLS support in Distributed Objects so that we have
+	separate settings for whether the port is acting as a client or
+	server.
+
+2021-06-19 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSTLS.m:
+	* Source/NSSocketPort.m:
+	Improve reporting of TLS handshake errors, fix a few leaks and
+	generally make encryption of DO connections better.
+
+2021-06-17 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/Additions/Unicode.m:
+	Fix lookup of string encodings with high numeric values in
+	encoding table when they are interpreted as negative numbers
+	for some platforms/compilers (pertains
+	NSUTF16*EndianStringEncoding and NSUTF32*StringEncoding).
+
+2021-06-03 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/GNUstepBase/GSTLS.h: New session ivar for I/O handle.
+	* Source/GSTLS.m: Report the I/O handle in debug logs so we can
+	more easily track which logs refer apply to the objects using a
+	session.
+	* Source/NSSocketPort.m: debug improvements plus fixes to the code
+	for initiating connections so that the initial port information is
+	reliably written to the handle.
+
+2021-06-02 Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/Foundation.h: Add missing import for
+        NSByteCountFormatter.
+
+2021-05-31 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/GNUstepBase/GSTLS.h: ([GSTLSCredentials selfSigned:])
+	* Source/GSTLS.m: Add new method to use certtool to generate a
+	key and a self-signed certificate.  Use the new method to set up
+	server sessions if no certificate/key is configured.
+	* Headers/Foundation/NSPort.h: ([NSSocketPost setOptionsForTLS:])
+	* Source/NSSocketPort.m: New methods to configure socket ports to
+	use TLS so that inter-host distributed object connections can be
+	securely encrypted.  The class method should turn on encryption
+	for all subsequent connections using socket ports (the instance
+	method can be used to override the effects of the class method
+	for an individual instance).
+
+2021-05-23 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSStream.m:
+	When we get an event saying that there is space available, we should
+	change the stream status from writing to open (because the write
+	operation completed).  This makes the -hasSpaceAvailable method return
+	the correct value when a callback routine is checking to see if it
+	can write.
+
+2021-05-19 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/win32/GSFileHandle.m:
+	Fixed bug preventing write of long data (failing to watch for write
+	completion when only part of the data is written).  Added some debug
+
+2021-05-15 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSFileHandle.m:
+	* Source/win32/GSFileHandle.m:
+	When we receive an event telling us the handle is writable, repeatedly
+	write until either all the data we have is written or until the write
+	attempt doesn't write anything.  On mswindows this copes with the case
+	of the gnutls write only writing 16KB chunks at a time.
+
+2021-05-05 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* configure.ac: Check for declaration of CURLOPT_MAXAGE_CONN
+	* configure: regenerate
+	* Headers/GNUstepBase/config.h.in: regenerate
+	* Source/NSURLSession.m: Use HAVE_DECL_CURLOPT_MAXAGE_CONN to tell
+	whether -setHTTPMaximumConnectionLifetime: can be implemented. This
+	fixes a bug where the method was not implemented even though the
+	version of Curl available supported it.
+	* Tests/base/NSURLSession/test02.m: Add a testcase (hope) to see if
+	-setHTTPMaximumConnectionLifetime: is supported.
+
+2021-04-26 Ivan Vucica <ivan@vucica.net>
+
+	* ChangeLog:
+	Update ChangeLog to release 1.28.0.
+
+2021-04-23 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/DocMakefile:
+	Ignore GS_EXPORT_CLASS when generating documentation for
+	base/additions.
+
+2021-04-22 Ivan Vucica <ivan@vucica.net>
+
+	* ChangeLog:
+	Formatting and email address fixes.
+	* ANNOUNCE:
+	* NEWS:
+	* Documentation/ReleaseNotes.gsdoc:
+	* Documentation/news.texi:
+	Update release notes for a future 1.28.0 release.
+	* Version:
+	Bump version to 1.28.0.
+
+2021-04-14 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/Foundation/NSString.h:
+	* Source/NSString.m:
+	* Source/NSString.m:
+	Fixes for BOM insertion when generating data from a string using one
+	of the unicode encodings.  The BOM is inserted in the case where the
+	byte order is important in the specified encoding, but the encoding
+	does not specify which byte order is used.  This is the case for
+	NSUnicodeStringEncoding, NSUTF16StringEncoding (which is a synonym
+	for NSUnicodeStringEncoding), and NSUTF32StringEncoding.
+	The bit of this that might impact existing code is that the BOM is
+	now placed at the start of the data even in the string is empty (as
+	on OSX).
+
+2021-03-27 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/GNUstepBase/GSVersionMacros.h:
+	Add GS_IMPORT macro resolving to dllimport annonation on Windows.
+	* Source/NSObject.m:
+	Add support for libobjc2 runtime on Windows.
+
+2021-03-27 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSConnection.h:
+	* Source/Additions/GSMime.m:
+	* Source/Additions/NSDebug+GNUstepBase.m:
+	* Source/Additions/NSStream+GNUstepBase.m:
+	* Source/GSPrivate.h:
+	* Source/GSTLS.m:
+	* Source/NSArchiver.m:
+	* Source/NSBundle.m:
+	* Source/NSConcreteHashTable.m:
+	* Source/NSConcreteMapTable.m:
+	* Source/NSConnection.m:
+	* Source/NSDate.m:
+	* Source/NSDecimal.m:
+	* Source/NSError.m:
+	* Source/NSExtensionContext.m:
+	* Source/NSExtensionItem.m:
+	* Source/NSFileHandle.m:
+	* Source/NSFileManager.m:
+	* Source/NSHFSFileTypes.m:
+	* Source/NSHTTPCookie.m:
+	* Source/NSHTTPCookieStorage.m:
+	* Source/NSInvocationOperation.m:
+	* Source/NSItemProvider.m:
+	* Source/NSKeyValueCoding.m:
+	* Source/NSKeyValueObserving.m:
+	* Source/NSKeyedArchiver.m:
+	* Source/NSKeyedUnarchiver.m:
+	* Source/NSLocale.m:
+	* Source/NSMetadata.m:
+	* Source/NSMetadataAttributes.m:
+	* Source/NSNetServices.m:
+	* Source/NSObjCRuntime.m:
+	* Source/NSObject.m:
+	* Source/NSPathUtilities.m:
+	* Source/NSPersonNameComponentsFormatter.m:
+	* Source/NSPort.m:
+	* Source/NSSpellServer.m:
+	* Source/NSTimeZone.m:
+	* Source/NSURL.m:
+	* Source/NSURLCredentialStorage.m:
+	* Source/NSURLHandle.m:
+	* Source/NSURLProtectionSpace.m:
+	* Source/NSUserNotification.m:
+	* Source/NSXMLParser.m:
+	* Source/NSZone.m:
+	* Source/externs.m:
+	Export string constants and annotate exported function implementations.
+	Moves scattered string constants to externs.m, and removes obsolete
+	code replacing constant strings.
+
+2021-03-12 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSFileManager.m:
+	* Source/NSProcessInfo.m:
+	* Source/win32/dirent.h:
+	Add NSFileManager support on Windows MSVC using dirent.h from:
+	https://github.com/tronkko/dirent/blob/master/include/dirent.h
+	Also unifies _CHAR in NSFileManager with GSNativeChar, as they are
+	internally required to be the same.
+
+2021-03-09 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSRunLoop.m:
+	Fix libdispatch integration compilation error on Windows.
+
+2021-03-05 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSHTTPURLHandle.m:
+	Rewrite handling of tls handshake to operate asynchronously,
+	attempting continuation of the handshake when the socket becomes
+	readable.  The point of this is to prevent recursive entry into the
+	runloop (and possible stack overflow) if the remote end fails to send
+	anything for a while.
+
+2021-03-03 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSTimer.h:
+	* Source/NSTimer.m: add unscheduled NSTimer block initializer
+
+2021-02-22 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/GSXML.m:
+        Fix potential deadlock found by Wolfgang
+
+2021-02-18 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/GSXML.m:
+        Initialise XMLParser in main thread
+
+2021-02-13 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSHTTPURLHandle.m:
+	* Source/GSTLS.m:
+	* Source/NSFileHandle.m:
+        Fixes for SSL/TLS support using GNUTLS under MinGW.
+	Use send/recv rather than read/write in TLS push/pull functions
+	(works with winsock and unix) and perform mappings between winsock
+	error codes and unix/gnutls error codes so that we correctly repeat
+	operations whe they fail in non-blocking mode.
+
+2021-02-12 Frederik Seiffert <frederik@algoriddim.com>
+
+  	* Headers/Foundation/NSNull.h: Add missing GS_EXPORT_CLASS.
+  	* Tests/base/Functions/NSByteSwapping.m: Define M_PI if needed.
+  	* configure:
+  	* configure.ac: Add support for pthreadVC2 library variant and
+  	tweak host OS check for Windows to be more specific.
+
+2021-02-06 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSURLProtocol.m:
+        Fix failure to send large requests, when the write operation succeeds
+	but we have not written all the data we need to, we should write more
+	as long as the stream has space available.
+
+2021-02-05 Fred Kiefer <fredkiefer@gmx.de>
+
+        * Tools/make_strings/StringsFile.m: Write the file in UTF8 format
+	if the string contains any non ASCII character.
+
+2021-02-03 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Tools/GNUmakefile: disable gdomap on Android (unsupported).
+
+2021-02-02 Riccardo Mottola <rm@gnu.org>
+
+	* configure
+	* configure.ac
+	Add check for statbuf.st_mtim if available
+
+	* Source/NSFileManager.m
+	Use statbuf.st_mtim to get nanosecond precision in modification
+	date, also fix conversion of nanoseconds in creation date.
+
+2021-01-29 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSAffineTransform.h:
+	* Headers/Foundation/NSAppleEventDescriptor.h:
+	* Headers/Foundation/NSAppleEventManager.h:
+	* Headers/Foundation/NSAppleScript.h:
+	* Headers/Foundation/NSArchiver.h:
+	* Headers/Foundation/NSArray.h:
+	* Headers/Foundation/NSAttributedString.h:
+	* Headers/Foundation/NSAutoreleasePool.h:
+	* Headers/Foundation/NSBackgroundActivityScheduler.h:
+	* Headers/Foundation/NSBundle.h:
+	* Headers/Foundation/NSByteCountFormatter.h:
+	* Headers/Foundation/NSCache.h:
+	* Headers/Foundation/NSCalendar.h:
+	* Headers/Foundation/NSCalendarDate.h:
+	* Headers/Foundation/NSCharacterSet.h:
+	* Headers/Foundation/NSClassDescription.h:
+	* Headers/Foundation/NSCoder.h:
+	* Headers/Foundation/NSComparisonPredicate.h:
+	* Headers/Foundation/NSCompoundPredicate.h:
+	* Headers/Foundation/NSConnection.h:
+	* Headers/Foundation/NSData.h:
+	* Headers/Foundation/NSDate.h:
+	* Headers/Foundation/NSDateComponentsFormatter.h:
+	* Headers/Foundation/NSDateFormatter.h:
+	* Headers/Foundation/NSDateInterval.h:
+	* Headers/Foundation/NSDateIntervalFormatter.h:
+	* Headers/Foundation/NSDictionary.h:
+	* Headers/Foundation/NSDistantObject.h:
+	* Headers/Foundation/NSDistributedLock.h:
+	* Headers/Foundation/NSEnergyFormatter.h:
+	* Headers/Foundation/NSEnumerator.h:
+	* Headers/Foundation/NSError.h:
+	* Headers/Foundation/NSException.h:
+	* Headers/Foundation/NSExpression.h:
+	* Headers/Foundation/NSExtensionContext.h:
+	* Headers/Foundation/NSExtensionItem.h:
+	* Headers/Foundation/NSFileCoordinator.h:
+	* Headers/Foundation/NSFileHandle.h:
+	* Headers/Foundation/NSFileManager.h:
+	* Headers/Foundation/NSFileVersion.h:
+	* Headers/Foundation/NSFileWrapper.h:
+	* Headers/Foundation/NSGarbageCollector.h:
+	* Headers/Foundation/NSHTTPCookie.h:
+	* Headers/Foundation/NSHTTPCookieStorage.h:
+	* Headers/Foundation/NSHashTable.h:
+	* Headers/Foundation/NSHost.h:
+	* Headers/Foundation/NSISO8601DateFormatter.h:
+	* Headers/Foundation/NSInvocation.h:
+	* Headers/Foundation/NSInvocationOperation.h:
+	* Headers/Foundation/NSItemProvider.h:
+	* Headers/Foundation/NSItemProviderReadingWriting.h:
+	* Headers/Foundation/NSJSONSerialization.h:
+	* Headers/Foundation/NSKeyedArchiver.h:
+	* Headers/Foundation/NSLengthFormatter.h:
+	* Headers/Foundation/NSLinguisticTagger.h:
+	* Headers/Foundation/NSLocale.h:
+	* Headers/Foundation/NSLock.h:
+	* Headers/Foundation/NSMapTable.h:
+	* Headers/Foundation/NSMassFormatter.h:
+	* Headers/Foundation/NSMeasurement.h:
+	* Headers/Foundation/NSMeasurementFormatter.h:
+	* Headers/Foundation/NSMetadata.h:
+	* Headers/Foundation/NSMethodSignature.h:
+	* Headers/Foundation/NSNetServices.h:
+	* Headers/Foundation/NSNotification.h:
+	* Headers/Foundation/NSNotificationQueue.h:
+	* Headers/Foundation/NSNumberFormatter.h:
+	* Headers/Foundation/NSObjCRuntime.h:
+	* Headers/Foundation/NSObject.h:
+	* Headers/Foundation/NSObjectScripting.h:
+	* Headers/Foundation/NSOperation.h:
+	* Headers/Foundation/NSOrderedSet.h:
+	* Headers/Foundation/NSOrthography.h:
+	* Headers/Foundation/NSPersonNameComponents.h:
+	* Headers/Foundation/NSPersonNameComponentsFormatter.h:
+	* Headers/Foundation/NSPointerArray.h:
+	* Headers/Foundation/NSPointerFunctions.h:
+	* Headers/Foundation/NSPort.h:
+	* Headers/Foundation/NSPortCoder.h:
+	* Headers/Foundation/NSPortNameServer.h:
+	* Headers/Foundation/NSPredicate.h:
+	* Headers/Foundation/NSProcessInfo.h:
+	* Headers/Foundation/NSProgress.h:
+	* Headers/Foundation/NSPropertyList.h:
+	* Headers/Foundation/NSProtocolChecker.h:
+	* Headers/Foundation/NSProxy.h:
+	* Headers/Foundation/NSRegularExpression.h:
+	* Headers/Foundation/NSRunLoop.h:
+	* Headers/Foundation/NSScanner.h:
+	* Headers/Foundation/NSScriptClassDescription.h:
+	* Headers/Foundation/NSScriptCoercionHandler.h:
+	* Headers/Foundation/NSScriptCommand.h:
+	* Headers/Foundation/NSScriptCommandDescription.h:
+	* Headers/Foundation/NSScriptExecutionContext.h:
+	* Headers/Foundation/NSScriptKeyValueCoding.h:
+	* Headers/Foundation/NSScriptObjectSpecifiers.h:
+	* Headers/Foundation/NSScriptStandardSuiteCommands.h:
+	* Headers/Foundation/NSScriptSuiteRegistry.h:
+	* Headers/Foundation/NSSerialization.h:
+	* Headers/Foundation/NSSet.h:
+	* Headers/Foundation/NSSortDescriptor.h:
+	* Headers/Foundation/NSSpellServer.h:
+	* Headers/Foundation/NSStream.h:
+	* Headers/Foundation/NSString.h:
+	* Headers/Foundation/NSTask.h:
+	* Headers/Foundation/NSTextCheckingResult.h:
+	* Headers/Foundation/NSThread.h:
+	* Headers/Foundation/NSTimeZone.h:
+	* Headers/Foundation/NSTimer.h:
+	* Headers/Foundation/NSURL.h:
+	* Headers/Foundation/NSURLAuthenticationChallenge.h:
+	* Headers/Foundation/NSURLCache.h:
+	* Headers/Foundation/NSURLConnection.h:
+	* Headers/Foundation/NSURLCredential.h:
+	* Headers/Foundation/NSURLCredentialStorage.h:
+	* Headers/Foundation/NSURLDownload.h:
+	* Headers/Foundation/NSURLHandle.h:
+	* Headers/Foundation/NSURLProtectionSpace.h:
+	* Headers/Foundation/NSURLProtocol.h:
+	* Headers/Foundation/NSURLRequest.h:
+	* Headers/Foundation/NSURLResponse.h:
+	* Headers/Foundation/NSURLSession.h:
+	* Headers/Foundation/NSUUID.h:
+	* Headers/Foundation/NSUbiquitousKeyValueStore.h:
+	* Headers/Foundation/NSUndoManager.h:
+	* Headers/Foundation/NSUnit.h:
+	* Headers/Foundation/NSUserActivity.h:
+	* Headers/Foundation/NSUserDefaults.h:
+	* Headers/Foundation/NSUserNotification.h:
+	* Headers/Foundation/NSUserScriptTask.h:
+	* Headers/Foundation/NSValue.h:
+	* Headers/Foundation/NSValueTransformer.h:
+	* Headers/Foundation/NSXMLDTD.h:
+	* Headers/Foundation/NSXMLDTDNode.h:
+	* Headers/Foundation/NSXMLDocument.h:
+	* Headers/Foundation/NSXMLElement.h:
+	* Headers/Foundation/NSXMLNode.h:
+	* Headers/Foundation/NSXMLParser.h:
+	* Headers/Foundation/NSXPCConnection.h:
+	* Headers/GNUstepBase/CXXException.h:
+	* Headers/GNUstepBase/GCObject.h:
+	* Headers/GNUstepBase/GSConfig.h.in:
+	* Headers/GNUstepBase/GSMime.h:
+	* Headers/GNUstepBase/GSTLS.h:
+	* Headers/GNUstepBase/GSVersionMacros.h:
+	* Headers/GNUstepBase/GSXML.h:
+	* Headers/GNUstepBase/NSStream+GNUstepBase.h:
+	* Source/Additions/GSXML.m:
+	* Source/Additions/Makefile.preamble:
+	* Source/CXXException.m:
+	* Source/GNUmakefile:
+	* Source/NSException.m:
+	* Source/NSFileManager.m:
+	* Source/NSPropertyList.m:
+	* Source/NSSocketPort.m:
+	* Source/ObjectiveC2/Makefile.preamble:
+	* Source/common.h:
+	* Source/externs.m:
+	* Source/inet_ntop.m:
+	* Source/inet_pton.m:
+	* Source/libgnustep-base-entry.m:
+	* Source/unix/Makefile.preamble:
+	* Source/win32/GSFileHandle.m:
+	* Source/win32/Makefile.preamble:
+	* Tools/GNUmakefile:
+	* Tools/Makefile.preamble:
+	* Tools/gdnc.m:
+	* Tools/make_strings/make_strings.m:
+	* Tools/pl2link.m:
+	* Tools/plutil.m:
+	* config/config.initialize.m:
+	* configure:
+	* configure.ac:
+	Added support for building on Windows with Clang MSVC target and
+	libobjc2. This requires using a standard (non-MinGW) Clang build that
+	e.g. comes with Visual Studio or is available as pre-built binary from
+	the LLVM website, and requires passing a host to configure like
+	--host=x86_64-pc-windows.
+	The build is best done in an MSYS2 shell that does not have any
+	additional *-devel packages installed that might get picked up by
+	configure. Alternatively --disable-xxx flags can be used to prevent
+	these dependencies to be picked up.
+	Annotates all ObjC class interfaces with GS_EXPORT_CLASS for DLL
+	export/import declarations, and adds missing GS_DECLARE annotations
+	in externs.m, in order for these symbols to be correctly exported
+	in the DLL.
+
+2021-01-21 Fred Kiefer <fredkiefer@gmx.de>
+
+	* Tools/pl2link.m (main): Set key StartupWMClass and allow file
+	parameters of the Exec key.
+	Idea by: Josh Freeman <gnustep_lists@twilightedge.com>
+
+2021-01-21 Richard Frith-Macdonald <rfm@gnu.org>
+
+        * Source/NSScanner.m: Fix scanning of zero values.
+	Was checking incorrect variable to avoid assignment to nul pointer.
+
+2021-01-19 Richard Frith-Macdonald <rfm@gnu.org>
+
+        * Source/NSKeyValueObserving.m: Fix leak of set
+        * Source/NSPredicate.m: Fix leak evaluating a cast
+        * Source/NSUnit.m: Fix memory leaks
+	* Source/NSData.m: Use NSZoneMalloc and NSZoneRealloc for memory
+	to ensure it is in the correct zone for the instance (and to avoid
+	complaints from static analyser).
+
+2021-01-16 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSSocketStream.m:
+        Remove stream from handler upon deallocation, to avoid handler
+	sending messages to deallocated stream.
+
+2020-12-30 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSScanner.m:
+        Fix failure to re-set flag to say whether a string is unicode
+
+2020-12-30 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSScanner.m:
+        Fix potential problem with new optimisation for direct access to
+	contents of 8bit strings ... when the decimal separator is not an
+	ascii character we may need to convert the 8bit value to unicode.
+
+2020-12-30 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSScanner.m:
+	* Source/NSString.m:
+        Use new private method to scan double values.
+
+2020-12-30 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSScanner.m:
+        Remove internal GSScanInt and GSScanDouble functions after moving
+	functionality into the -scanDouble: method.  Add private class
+	method to support scanning a string for a double without having
+	to create a new scanner each time (use a shared lock-protected,
+	instance with resetting of the string being scanned).
+
+2020-12-30 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSPropertyList.m:
+        Remove unused header import
+
+2020-12-30 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSString.m:
+        Use superclass implementation of -doubleValue and -floatValue
+
+2020-12-29 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSScanner.m:
+        Change -scanDouble: to call GSScanDouble() to perform conversion.
+	Fix GSScanDouble to cope with leading zeros.
+
+2020-12-15 Frederik Seiffert <frederik@algoriddim.com>
+
+	* configure:
+	* configure.ac:
+        Disable libcurl support when headers are not found
+
+2020-12-15 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/GNUstepBase/GNUstep.h:
+	* Headers/GNUstepBase/GSBlocks.h:
+	* Headers/ObjectiveC2/objc/blocks_runtime.h:
+	* Source/GSString.m:
+	* Source/NSConcreteHashTable.m:
+	* Source/NSConcreteMapTable.m:
+	* Source/NSConnection.m:
+	* Source/NSDistantObject.m:
+	* Source/NSMethodSignature.m:
+	* Source/NSNumberMethods.h:
+	* Tools/gdomap.c:
+        Consistently use __typeof__() rather than typeof() or __typeof()
+	for compatibility (GCC and clang and, perhaps, other future
+	compilers) irrespective of -std= compilation options.
+
+2020-12-15 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tests/base/NSUUID/basic.m:
+        Fix stupid mistake  using wrong string value
+
+2020-12-15 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSUUID.m:
+	* Tests/base/NSUUID/basic.m:
+        Fix initialisation of NSUUID from string (permit mixed case hex digits)
+
+2020-12-11 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSStream.m:
+        Fixup incorrect commit
+
+2020-12-11 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSStream.h:
+	* Source/GSStream.m:
+        Improve diagnostic logging
+
+2020-12-09 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tools/gdomap.c:
+        Use correct definition for integer type in windows
+
+2020-12-09 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSFileManager.m:
+        Fix unused variable on windows
+
+2020-12-09 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSUserDefaults.m:
+        Add fake interface for NSUserDefaultsWin32 to avoid compiler warning
+
+2020-12-09 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSPathUtilities.m:
+        Only declare variables for systems which use them.
+
+2020-12-07 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSUUID.m:
+        Fix typo in comment (incorrect RFC number)
+
+2020-12-07 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSFileCoordinator.m:
+	* Source/NSItemProvider.m:
+	* Source/NSSortDescriptor.m:
+	* Source/NSTimer.m:
+        Avoid compiler warnings when we do not have real blocks
+
+2020-12-07 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/GNUstepBase/GNUstep.h:
+        Use casts to prevent many compiler warnings when using pseudo-blocks
+
+2020-12-07 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSBackgroundActivityScheduler.m:
+        Fixup to import local headers rather than installed versions
+
+2020-12-07 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSOperation.m:
+        Avoid compiler warnings on system with pseudo-blocks
+
+2020-12-07 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSSocketStream.m:
+        Fix format string error in -description
+
+2020-12-07 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSSocketStream.m:
+	* Source/GSStream.m:
+        Improve diagnostic output
+
+2020-12-06 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSSocketStream.m:
+        An error in a socketpair only applies to the other socket
+	if still opening
+
+2020-12-04 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSOrderedSet.m:
+        Use unsigned long for fast enumeration version counter
+
+2020-12-04 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSCountedSet.m:
+        fix typo
+
+2020-12-04 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/GSInsensitiveDictionary.m:
+	* Source/GSCountedSet.m:
+	* Source/GSDictionary.m:
+	* Source/GSSet.m:
+	* Source/NSConcreteHashTable.m:
+	* Source/NSConcreteMapTable.m:
+	* Source/NSUnarchiver.m:
+        Fix to make value pointed to by mutationsPtr be unsigned long.
+
+2020-12-04 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSPortCoder.m:
+        Fix range check for decoded 32bit integer
+
+2020-12-04 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSRunLoop.m:
+        Suppress warnings about use of 'private' functions from libdispatch
+
+2020-12-04 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/ObjectiveC2/blocks_runtime.m:
+        Declare external block as const void rather than void for
+	consistency and to avoid compiler warning
+
+2020-12-04 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSFastEnumeration.h:
+        Suppress dll import warnings for objc_enumerationMutation() on mingw
+
+2020-12-03 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSValue.m:
+	* Source/NSBackgroundActivityScheduler.m:
+        Avoid compiler warning
+
+2020-12-03 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/Unicode.m:
+	* Source/NSData.m:
+	* Source/NSUUID.m:
+        Use memcpy rather than strncpy/strncat to avoid compiler warnings
+
+2020-12-03 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tools/NSPropertyList+PLUtil.m:
+        Import missing NSError header
+
+2020-12-03 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSKeyValueCoding.m:
+        Use memcpy rather than strncpy to avoid compiler warnings
+
+2020-12-03 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSData.m:
+        Tweaks to avoid compiler warnings
+
+2020-12-03 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tests/base/NSJSONSerialization/tests00.m:
+        Create temporary file in current directory and delete it when done.
+	This fixes testcase to work on windows.
+
+2020-11-27 Frederik Seiffert <frederik@algoriddim.com>
+
+	* configure:
+	* configure.ac:
+        Detect objc.lib and add libdir to path on Windows.
+
+2020-11-27 Frederik Seiffert <frederik@algoriddim.com>
+
+	* configure:
+	* configure.ac:
+        Prefer dispatch/dispatch.h over dispatch.h.
+
+2020-11-29 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* .travis.yml:
+	* Headers/Foundation/NSDebug.h:
+	* Headers/Foundation/NSURLCache.h:
+	* Headers/Foundation/NSURLError.h:
+	* Headers/Foundation/NSURLProtocol.h:
+	* Headers/Foundation/NSURLRequest.h:
+	* Headers/Foundation/NSURLSession.h:
+	* Headers/GNUstepBase/GSConfig.h.in:
+	* Headers/GNUstepBase/config.h.in:
+	* Source/Additions/GSObjCRuntime.m:
+	* Source/Additions/Makefile.preamble:
+	* Source/GNUmakefile:
+	* Source/GSEasyHandle.h:
+	* Source/GSEasyHandle.m:
+	* Source/GSHTTPURLHandle.m:
+	* Source/GSHTTPURLProtocol.h:
+	* Source/GSHTTPURLProtocol.m:
+	* Source/GSMultiHandle.h:
+	* Source/GSMultiHandle.m:
+	* Source/GSNativeProtocol.h:
+	* Source/GSNativeProtocol.m:
+	* Source/GSTLS.m:
+	* Source/GSTaskRegistry.h:
+	* Source/GSTaskRegistry.m:
+	* Source/GSTimeoutSource.h:
+	* Source/GSTimeoutSource.m:
+	* Source/GSTransferState.h:
+	* Source/GSTransferState.m:
+	* Source/GSURLPrivate.h:
+	* Source/GSURLSessionTaskBody.h:
+	* Source/GSURLSessionTaskBody.m:
+	* Source/GSURLSessionTaskBodySource.h:
+	* Source/GSURLSessionTaskBodySource.m:
+	* Source/NSConcretePointerFunctions.m:
+	* Source/NSException.m:
+	* Source/NSMessagePort.m:
+	* Source/NSSocketPort.m:
+	* Source/NSURLCache.m:
+	* Source/NSURLConnection.m:
+	* Source/NSURLProtocol.m:
+	* Source/NSURLRequest.m:
+	* Source/NSURLResponse.m:
+	* Source/NSURLSession.m:
+	* Source/NSXPCConnection.m:
+	* Tests/base/NSURL/Helpers/keepalive.m:
+	* Tests/base/NSURL/test00.m:
+	* Tests/base/NSURLConnection/Helpers/NSURLConnectionTest.h:
+	* Tests/base/NSURLConnection/Helpers/NSURLConnectionTest.m:
+	* Tests/base/NSURLConnection/Helpers/TestCase.m:
+	* Tests/base/NSURLConnection/Helpers/TestWebServer.h:
+	* Tests/base/NSURLConnection/Helpers/TestWebServer.m:
+	* Tests/base/NSURLConnection/Helpers/testTestWebServer.m:
+	* Tests/base/NSURLConnection/test01.m:
+	* Tests/base/NSURLConnection/test02.m:
+	* Tests/base/NSURLConnection/test03.m:
+	* Tests/base/NSURLConnection/test04.m:
+	* Tests/base/NSURLConnection/test05.m:
+	* Tests/base/NSURLConnection/test06.m:
+	* Tests/base/NSURLConnection/test07.m:
+	* Tests/base/NSURLSession/GNUmakefile.preamble:
+	* Tests/base/NSURLSession/TestInfo:
+	* Tests/base/NSURLSession/delegate.g:
+	* Tests/base/NSURLSession/gdbinit:
+	* Tests/base/NSURLSession/test01.m:
+	* Tests/base/NSURLSession/test02.m:
+	* base.make.in:
+	* config.mak.in:
+	* config/addlibrarypath.m4:
+	* configure:
+	* configure.ac:
+        Merge changes for NSURLSession from EngageHub (formerly Brainstorm).
+	NB. NSURLSession is the third generation URL management API in OSX,
+	but the previous two generations still exist and are good for much
+	web-based programming.  The NSURLSession code has more deependencies
+	on recent versions of external libraries (libcurl, http/2 support,
+	libdispatch) as well as the latest objective-c runtime and the use
+	of blocks (only available when built using clang and the ng runtime).
+
+2020-11-28 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* configure:
+	* configure.ac:
+        Remove obsolete checks for garbage collecting runtime
+	(no longer supported)
+
+2020-11-22 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/NSMutableString+GNUstepBase.m:
+	* Source/GSString.m:
+        Add optimisation for the use of GSImmutableString so that it
+	can make use of the layout of the underlying mutable string
+	that the GSImmutableString is a proxy for.
+
+2020-11-22 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSString.m:
+        Rewrite -replaceCharactersInRange:withString: to cope with the
+	case where the string argument is the receiver (or some proxy
+	to the receiver etc).
+
+2020-11-22 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/NSMutableString+GNUstepBase.m:
+        Report YES for GSImmutableString being a proxy
+
+2020-11-21 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSString.m:
+        Fix for text storage objects setting their content to their
+	own immutable proxy.
+
+2020-11-20 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/GSMime.m:
+        Add casts to avoid compiler warnings
+
+2020-11-19 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSString.m:
+        Minor tidyup for clearer indentation
+
+2020-11-19 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/Unicode.m:
+        Correct checks for validity of the second UTF16 value
+	in a surrogate pair
+
+2020-11-18 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/Foundation/NSFileHandle.h:
+        Declare NSURL before using it.
+
+2020-11-18 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSDictionary.m:
+        Be defensive about checking for key beginning with @
+
+2020-11-17 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSFileHandle.h:
+	* MISSING:
+	* Source/NSFileHandle.m:
+        Add NSFileHandle URL initializers.
+        Also use "instancetype" for all initializers.
+
+2020-11-14 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/GNUstepBase/GSMime.h:
+	* Source/Additions/GSMime.m:
+        Add methods to control size of in-memory queue os emails
+
+2020-11-13 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSData.m:
+        Fix bug in offset
+
+2020-06-11 Frederik Seiffert <frederik@algoriddim.com>
+
+	* .travis.yml:
+        Output config.log if build fails on CI.
+
+2020-11-13 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tests/base/NSOperation/threads.m:
+        Allow more time for operations thread to exit on slow machines
+
+2020-11-12 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/GSICUString.h:
+        Fix compilation with ICU 68.
+
+2020-11-12 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tools/plutil.m:
+        Allow synonyms for help and print same message as OSX for
+	unrecognised options.
+
+2020-11-12 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tools/plutil.m:
+        Fix missing semicolon
+
+2020-11-11 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSString.m:
+        Avoid building unused functions when new string API is used.
+
+2020-11-07 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tools/NSPropertyList+PLUtil.h:
+	* Tools/NSPropertyList+PLUtil.m:
+        Trivial format fixes
+
+2020-11-07 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tools/NSPropertyList+PLUtil.m:
+	* Tools/plutil.m:
+        Fix a check for a null pointer and add various whitespace/indentation
+	tidyups.
+
+2020-11-07 Mingye Wang <arthur2e5@aosc.io>
+
+	* Tools/plutil.1:
+	* Tools/plutil.m:
+        plutil: Some documentation
+
+2020-11-06 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tools/plutil.m:
+        Fixups for format and compilation
+
+2020-10-29 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSNotificationCenter.m:
+        Improve logging of an exception when posting a notification so that,
+	if possible, we include the details of the notification being posted.
+
+2020-10-27 Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSRunLoop.h:
+	* Source/NSRunLoop.m:
+        fix for compilation error
+
+2020-10-27 Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSURLConnection.h:
+        Add guards for API version
+
+2020-10-26 Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSRunLoop.h:
+	* Headers/Foundation/NSURLConnection.h:
+	* Source/NSRunLoop.m:
+	* Source/NSURLConnection.m:
+        Add methods for 10.5
+
+2020-10-24 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSDebug.m:
+        Fix use of potentially invalid value from heap
+
+2020-10-13 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/GNUstepBase/GNUstep.h:
+        Change the behavior of ENTER_POOL/LEAVE_POOL so that it no longer
+	wraps the enclosed section of code in a loop (this was causing
+	errors when people used the macros inside loops which contained
+	pre-existing break/continue/return statements). You should not break,
+	continue, or return from such a block of code (to do so could leak
+	an autorelease pool and give objects a longer lifetime than they
+	ought to have.  If you wish to leave the block of code early,
+	you should ensure that doing so causes the autorelease pool outside
+	the block to be released promptly (since that will implicitly
+	release the pool created at the start of the block too).
+
+2020-10-12 Adam Fox <adam.fox@eggplant.io>
+
+	* Headers/Foundation/NSData.h:
+	* Source/NSData.m:
+	* Tests/base/NSData/search.m:
+        Implementation of [NSData rangeOfData:options:range],
+	adapted from [NSString rangeOfString:options:range].
+
+2020-10-12 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tools/AGSHtml.m:
+        Remove break whose use depends on ENTER_POOL/LEAVE_POOL behavior
+
+2020-10-11 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSOperation.m:
+        Fix retain/release error
+
+2020-10-03 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSTask.m:
+        Improve comments
+
+2020-09-30 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSOperation.m:
+        Remove unnecessary retain/release
+
+2020-09-30 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSOperation.m:
+        Added autorelease pool around each operation to catch any
+	autoreleased objects produced by the operation being executed.
+	This should prevent objects living until the end of the thread.
+
+2020-09-30 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSInvocationOperation.m:
+        Tidied indentation in code
+
+2020-09-30 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/Foundation/NSOperation.h:
+        whitespace tidyups
+
+2020-09-23 Mingye Wang <arthur200126@gmail.com>:
+
+	* Tools/NSPropertyList+PLUtil.m:
+	* Tools/plutil.m:
+        plutil: Add plutil utility.
+
+2020-09-23 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tests/base/NSDictionary/general.m:
+        Add test for array as key
+
+2020-09-21 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSFileManager.m:
+        Tidied some whitespace/indentation and removed obsolete comment
+
+2020-09-18 Riccardo Mottola <rm@gnu.org>
+
+	* .travis.yml:
+        fix typo
+
+2020-09-17 Riccardo Mottola <rm@gnu.org>
+
+	* Source/NSObject.m:
+        Windows linker doesn't really support WEAK symbols, not even
+	with gcc10. binutils 2.3.5 fails to link because not all
+	symbols were exported
+
+2020-09-17 Riccardo Mottola <rm@gnu.org>
+
+	* .travis.yml:
+        Use new option to disable unwind options in Travis build,
+	patch by Frederik Seiffert
+
+2020-09-08 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/GSInsensitiveDictionary.m:
+	* Source/GSDictionary.m:
+        Implement fast enumeration for insensitive dictionary
+
+2020-09-05 Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/NSPersonNameComponentsFormatter.m:
+        Add missing break
+
+2020-08-23 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tools/gdomap.c:
+        Avoid coverity warning by using memmove rather than strcpy
+
+2020-08-23 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/NSData+GNUstepBase.m:
+	* Source/Additions/GSXML.m:
+        Avoid coverity warning
+
+2020-08-30 Fred Kiefer <fredkiefer@gmx.de>
+
+        * Source/NSDateComponentsFormatter.m: Fix use of wrong operator.
+
+2020-08-08 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/GSMime.m:
+        Improve -contentFile to check the content-type header
+	before content-disposition
+
+2020-08-03 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSURL.h:
+	* MISSING:
+	* Source/NSURL.m:
+        Add NSURL methods:
+
+2020-08-02 Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSNotification.h:
+        Add NSNotificationName typedef
+
+2020-08-02 Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSAttributedString.h:
+        Add NSAttributedStringKey typedef
+
+2020-07-31 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSFileManager.m:
+        Fix calls to utimensat() which were passing the wrong value
+	for the first argument, which needs to be the file descriptor
+	of the directory containing the file, or AT_FDCWD to use the
+	current directory.
+
+2020-07-31 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSFileManager.m:
+        Set dates on copy ... it turns our OSX does not behave like Posix
+
+2020-07-31 Richard Frith-Macdonald <richard@frithmacdonald.me.uk>
+
+	* Tests/base/NSFileManager/general.m:
+        Add checks for rewriting a file
+
+2020-07-31 Richard Frith-Macdonald <richard@frithmacdonald.me.uk>
+
+        Add check for timestamp behavior when writing via NSData method
+	* Tests/base/NSFileManager/general.m:
+
+2020-07-31 Richard Frith-Macdonald <richard@frithmacdonald.me.uk>
+
+	* Tests/base/NSFileManager/general.m:
+        Add delay to be clear file date is in past before we copy it
+
+2020-07-30 Richard Frith-Macdonald <richard@frithmacdonald.me.uk>
+
+	* Tests/base/NSFileManager/general.m:
+        OSX, unlike Posix, sets the modification and creation dates of
+	a copy to be the same as the original (within floating point limits).
+
+2020-07-29 Richard Frith-Macdonald <richard@frithmacdonald.me.uk>
+
+	* Tests/base/NSFileManager/general.m:
+        Add test that creation/modification dates of copy differ from original
+
+2020-07-28 Riccardo Mottola <rm@gnu.org>
+
+	* Headers/GNUstepBase/config.h.in:
+	* Source/NSException.m:
+	* configure:
+	* configure.ac:
+        Explicitely allow disabling unwind, test for header and function too
+
+2020-07-13 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSURLRequest.h:
+	* Source/NSURLRequest.m:
+        Update NSURLRequest header to use "instancetype".
+
+2020-07-09 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSObject.m:
+        Move deallocation of zombie map outside lock protected section
+	so that any exception while deallocating will not cause
+	unbalanced lock/unlock
+
+2020-07-09 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSFileManager.m:
+        When copying objects we should not be attempting to set the
+	creation/modification date of the copy to that of the original.
+
+2020-07-09 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSLog.m:
+        Add casts to prevent compiler warnings, and comment to explain
+	the new change for android where there is no thread ID available
+	from the operating system.
+
+2020-07-08 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSLog.m:
+       	Don't log current thread if its identical to private thread ID.
+        This makes the log more succinct when GSLogThread is enabled and the
+        system doesn't provide an OS-level thread ID (i.e. GSPrivateThreadID()
+        returns GSCurrentThread()), which would previously cause the NSThread
+        pointer to be logged twice.
+
+
+2020-07-08 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSLog.m:
+	* Source/NSProcessInfo.m:
+	Improve NSLog output on Android.
+        We now always set -GSLogSyslog, as stdout/stderr is not available on
+        Android. Also fixes log output containing extraneous date/time.
+
+
+2020-07-07 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSData.m:
+        We only need to set the ownership of a newly created file on
+	unix-like systems where the effective user ID may be different
+	from the real user ID.
+
+2020-07-06 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSThread.m:
+        Fix possible deadlock when becoming multi-threaded.
+
+2020-06-27 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSString.m:
+        Replace temporary hack with a rewrite of whitespace checking to
+	use our own characterset data (derived from unicode data) on
+	which characters are counted as whitespace for the purpose of
+	capitalising strings.
+
+2020-06-25 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSData.m:
+        When overwriting a file, do not attempt to set creation date.
+	When creating a file, try to use the real uid when effective uid
+	is that of root.
+
+2020-06-24 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSString.m:
+        Simple fix to check for whitespace characters using strchr since
+	the old mechanism using characterset bitmap representations was
+	broken by the change to reduce waste in bitmaps (the code assumed
+	the bitmap was bigger than it really is).
+
+2020-06-24 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tests/base/NSString/NSString_tests.h:
+        Add a few tests for capitalisation
+
+2020-06-23 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSString.m:
+	* Source/NSString.m:
+        Check for nil arugment to -isEqualToString:
+
+2020-06-23 Richard Frith-Macdonald <richard@frithmacdonald.me.uk>
+
+	* Tests/base/NSString/basic.m:
+        an empty string is not equal to nil
+
+2020-06-19 Riccardo Mottola <rm@gnu.org>
+
+	* Source/inet_ntop.m:
+	* Source/inet_pton.m:
+        define WSAAPI to empty if it is undefined, just for safety
+
+2020-06-15 Riccardo Mottola <rm@gnu.org>
+
+	* Source/GSSocketStream.m:
+	* Source/NSHost.m:
+	* Source/inet_ntop.m:
+	* Source/inet_pton.m:
+        specify WSAAPI as return type too, needed for MSYS2-32bit
+
+2020-06-12 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tests/base/GSTLS/basic.m:
+        Fix by Yavor Doganiv ... disable certificate expiry test except
+	on 64bit systems, because old 32bit systems can't cope with the
+	test certificate end date.
+
+2020-06-11 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSValueTransformer.m:
+        Fix recursive creation of value transformers.
+
+2020-06-11 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Tests/base/NSValueTransformer/TestInfo:
+	* Tests/base/NSValueTransformer/basic.m:
+        Add tests for NSValueTransformer.
+
+2020-06-10 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSBundle.m:
+        Fix Android assets support for bundle directories
+
+2020-06-09 Riccardo Mottola <rm@gnu.org>
+
+	* Headers/GNUstepBase/config.h.in:
+	* Source/GSSocketStream.m:
+	* Source/NSHost.m:
+	* configure:
+	* configure.ac:
+        Explicitely test for ws2tcpip.h header, fix library detection
+	on windows for inet_ntop with corrent library, guard includes
+	and definitions with configure results, cleanup header inclusion
+
+2020-06-09 Riccardo Mottola <rm@gnu.org>
+
+	* Tools/gdomap.c:
+        Minor type cast to fix output for platforms where socket is unsigned
+
+2020-06-09 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSData.m:
+        Do not attempt to alter creation date of newly created file.
+
+2020-06-03 Frederik Seiffert <frederik@algoriddim.com>
+
+	* configure:
+	* configure.ac:
+        Fix finding libiconv via cross.config.
+
+2020-06-05 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSOperation.m:
+        Fix leak of new operation in -blockOperationWithBlock: method.
+	Make -addExecutionBlock: ensure it works with an on-heap copy
+	of its argument.  Tidy code to have NSBlockOperation methods
+	with normal formatting and alphabetical order.  Tidy code to
+	use standard macros for memory management.
+
+2020-06-05 Riccardo Mottola <rm@gnu.org>
+
+	* Headers/GNUstepBase/GSConfig.h.in:
+        MSYS and MSYS2 differ in the tricks to include both windows.h
+	and winsock2.h, use  __MINGW32_VERSION to differentiate them
+
+2020-06-05 Riccardo Mottola <rm@gnu.org>
+
+	* Source/win32/GSFileHandle.m:
+        Remove unneeded window headers include, since common.h will
+	include GSConfig.h
+
+2020-06-05 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSConcreteMapTable.m:
+        Fix replacing an existing value in a weak objects map table.
+
+2020-06-05 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Tests/base/NSMapTable/weakObjects.m:
+        Test replacing a weak value in NSMapTable.
+
+2020-06-03 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSUserDefaults.m:
+        Change -objectForKey: method to get the contents into a buffer (on
+	the stack) and iterate through them rather than creating an
+	autoreleased enumerator.
+	This avoids allocation/autorelease/deallocation of the enumerator
+	(as well as retain/release of the search list by the enumerator)
+	which should give better performance generally and avoid excess
+	object creation when lots of defaults lookups are done in an
+	autorelease pool.
+
+2020-05-29 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSThread.m:
+        Wrap code for posting of notifications (for becoming multithreaded
+	and for a thread being about to exit) in an autorelease pool.
+	This should avoid possible leakage of objects and warnings during
+	the notification process.
+
+2020-05-29 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tests/base/NSThread/late_unregister.m:
+        tidy whitespace
+
+2020-05-23 Frederik Seiffert <frederik@algoriddim.com>
+
+	* ChangeLog:
+	* Headers/GNUstepBase/GSConfig.h.in:
+	* Source/GSNetwork.h:
+	* Source/win32/GSFileHandle.m:
+	* config/config.reuseaddr.c:
+        Include winsock2.h before windows.h, as required by MSYS2/MinGW-w64.
+
+2020-05-23 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSException.h:
+        Fix warning "setjmp" redefined on Windows.
+
+2020-05-15 Frederik Seiffert <frederik@algoriddim.com>
+
+	* .travis.yml:
+	* travis-deps.sh:
+        Set up CI for Windows using MSYS2/MinGW-w64 and GCC.
+
+2020-05-27 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSFilePresenter.h:
+        Fix optional NSFilePresenter methods not being declared as optional.
+
+2020-05-26 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSThread.m:
+        On thread exit we must post the notification that it *will* exit
+	before setting the instance variable to say that it has finished.
+	This is tested as the order OSX does it, and makes sense to ensure
+	that, when -isFinished returns YES we can be sure the thread will
+	not do anything else.
+
+2020-05-26 Richard Frith-Macdonald <richard@frithmacdonald.me.uk>
+
+	* Tests/base/NSThread/late_unregister.m:
+        Add tests for exactly when notification of thread exit occurs
+
+2020-05-26 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Tests/base/NSUserDefaults/general.m:
+        Extended general tests for NSUserDefaults.
+
+2020-05-26 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSPortCoder.m:
+	* Source/NSUnarchiver.m:
+        Remove excess whitespace and copy trick to NSPortCoder
+
+2020-05-25 Riccardo Mottola <rm@gnu.org>
+
+	* Source/NSUnarchiver.m:
+        Rewrite lower negative bounds to avoid integer constants underflow
+	of literals
+
+2020-05-25 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSUserDefaults.m:
+        Store NSNumber instead of NSString for NSUserDefaults -setBool:forKey:.
+
+2020-05-19 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSBundle.m:
+	* Source/NSFileManager.m:
+        Android assets improvements to support directories
+
+2020-05-15 Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSKeyedArchiver.h:
+	* Source/NSKeyedUnarchiver.m:
+        Add set/get for requiresSecureCoding
+
+2020-05-14 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSException.h:
+        Fix BASE_NATIVE_OBJC_EXCEPTIONS check with OBJC_ZEROCOST_EXCEPTIONS.
+
+2020-05-13 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/win32/GSFileHandle.m:
+	* Source/win32/NSMessagePort.m:
+        Fix building Win32 classes with nonfragile ABI.
+
+2020-05-13 Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSKeyedArchiver.h:
+	* Source/NSKeyedArchiver.m:
+        Add set/get method for requiresSecureCoding
+
+2020-05-12 Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSKeyedArchiver.h:
+	* Source/NSKeyedArchiver.m:
+        Fix fred's suggestions.  Put guard and make more general method
+	the one which is called.
+
+2020-05-12 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSCalendar.m:
+        Casts to fix systems where the UCalendarDateFields enumeration
+	is unsigned.
+
+2020-05-11 Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Source/NSKeyedArchiver.m:
+        Send error back
+
+2020-05-11 niwatako <1546218+niwatako@users.noreply.github.com>
+
+	* Source/NSJSONSerialization.m:
+        Fix exponent validation
+
+2020-05-10 Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/NSISO8601DateFormatter.m:
+	* Source/NSOrthography.m:
+        Clean up some compiler warnings.
+
+2020-05-09 Fred Kiefer <fredkiefer@gmx.de>
+
+	* Tests/base/NSLocale/general.m:
+        Mark more tests that depend on locale setting as hopes.
+	* Tests/base/NSURL/basic.m: Use PASS_EQUAL in the downlaod test
+	to get the actual http status reported.
+	* Tests/base/NSXMLParser/parse.m: Mark stream test as hopeful
+	as this isn't implemented at the moment.
+
+2020-05-08 Fred Kiefer <fredkiefer@gmx.de>
+
+        * Source/NSXMLParser.m: Fix small bug in last commit that broke
+	all gui applications when there was a commented out section in
+	the user default XML file.
+
+2020-05-08 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSXMLParser.m:
+        Use RELEASE macro for memory management
+
+2020-05-08 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSXMLParser.m:
+        Convert to using indexes into a buffer
+
+2020-05-07 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSLocale.h:
+	* Source/NSLocale.m:
+        NSLocale improvements
+
+2020-05-06 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSXMLParser.m:
+        Reorganise to make the separation of the two parsers clearer.
+	NSXMLParser is the sloppy parser and can be selected using the
+	dummy subclass GSSloppyXMLParser while, if we have libxml2,
+	we can specifically select the strict parser using the
+	GSStrictXMLParser class.
+
+2020-05-06 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tests/base/NSXMLParser/basic.m:
+	* Tests/base/NSXMLParser/parse.m:
+        Update testcases to cover both parsers
+
+2020-05-05 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSXMLParser.h:
+	* Headers/GNUstepBase/GSXML.h:
+	* MISSING:
+	* Source/Additions/GSXML.m:
+	* Source/NSXMLParser.m:
+	* Tests/base/NSXMLParser/parse.m:
+        Implement -[NSXMLParser initWithStream:].
+
+2020-05-05 Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/unix/NSStream.m:
+        Add NSInputStream support for reading Android assets from main bundle.
+
+2020-05-05 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSCharacterSet.m:
+	* Tests/base/NSCharacterSet/general.m:
+        Fix -[NSCharacterSet invertedSet] to work by calling -invert
+	on a mutable copy
+
+2020-05-04 Riccardo Mottola <rm@gnu.org>
+
+	* Source/NSFileManager.m:
+        In changeFileAttributes implement setting of creation date also
+	for Unix, which needs to be done before setting the modification date.
+	Also, implement reading the creation (birth time) date if a supported
+	method was detected.
+
+2020-05-04 alotorev <artem@lotoriev.com>
+
+	* Source/NSURL.m:
+	* Tests/base/NSURL/basic.m:
+        Improvements  suggested by Fred Kiefer for the current pull request
+
+2020-05-04 alotorev <artem@lotoriev.com>
+
+	* Source/NSURL.m:
+        OSX like behaviour for NSURLQueryItem initialisers
+	Fixed bugs leading to leaks,  no autorelease in NSURLComponents
+	factory methods.
+
+2020-05-04 alotorev <artem@lotoriev.com>
+
+	* Source/NSURL.m:
+        Fixed initialization NSURLComponents with NSURL, should treat
+	a query from NSURL as a percent-encoded string.
+
+2020-05-04 alotorev <artem@lotoriev.com>
+
+	* Tests/base/NSURL/basic.m:
+	* Tests/base/NSURL/components.m:
+        Added tests to highlight some problems of the current
+	implementation of NSURLQueryItems and NSURLComponent.
+	The tests passed on OSX.
+
+2020-05-01 niwatako <1546218+niwatako@users.noreply.github.com>
+
+	* Source/NSJSONSerialization.m:
+        Fix loss of buffer in NSJSONSerialization.
+
+2020-05-01 Riccardo Mottola <rm@gnu.org>
+
+	* Source/NSFileManager.m:
+        fix log info
+
+2020-05-01 Riccardo Mottola <rm@gnu.org>
+
+	* ChangeLog:
+	* Headers/GNUstepBase/config.h.in:
+	* Source/NSFileManager.m:
+	* configure:
+	* configure.ac:
+        Use utimensat() to set file modification date, if available.
+
+2020-04-30 Artem Lotorev <artem@lotoriev.com>
+
+	* .gitignore:
+	* Tests/GNUmakefile:
+        Added param to run a test on a separate object or test file.
+	Added .DS_Store to .gitignore
+
+2020-04-28 Artem Lotorev <artem@lotoriev.com>
+
+	* Tests/base/NSString/test09.m:
+        Fixed build issue due to wrong argument in the macro
+
+2020-04-28 Artem Lotorev <artem@lotoriev.com>
+
+	* Tests/base/NSString/test09.m:
+        Added helper method for percent decoding/encoding tests
+
+2020-04-27 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSString.m:
+        Fixup -stringByAddingPercentEncodingWithAllowedCharacters:
+	to ignore membership of the supplied set if the character
+	is not in the ASCII range.
+
+2020-04-27 Artem Lotorev <artem@lotoriev.com>
+
+	* Tests/base/NSString/test09.m:
+        Added test for [NSString stringByRemovingPercentEncoding],
+	updated percent-encoding tests with PASS_EQUAL
+
+2020-04-27 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSString.m:
+        Fix typo spotted by 'alotrev'
+
+2020-04-26 Fred Kiefer <fredkiefer@gmx.de>
+
+        * Source/NSLocale.m: Respect NSLocaleCalendarIdentifier if
+        NSLocaleCalendar isn't set.
+        * Headers/Foundation/NSCalendar.h,
+        * Source/NSCalendar.m: Add newer features for NSDateComponents and
+        started to clean up NSCalendar implementation.
+        * Tests/base/NSCalendar/features-10-7.m: Add test for different
+        time zone.
+
+2020-04-25 Fred Kiefer <fredkiefer@gmx.de>
+
+	* Headers/Foundation/NSCalendar.h:
+	* Source/NSCalendar.m:
+        Add missing NSDateComponents methods.
+
+2020-04-24 Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSKeyedArchiver.h:
+	* Source/NSKeyedArchiver.m:
+        Start implementing some secure coding methods.
+
+2020-04-21 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSNotification.m:
+	* Tests/base/NSNotification/basic.m:
+        Override -hash and -isEqual: so that notifications with the same name,
+	object, and userInfo are considered equal. This is the OSX behavior.
+        Add tests for notification equality
+
+2020-04-16 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSURLResponse.m:
+        Fix for NSURLResponse does not allow for multiple Set-Cookie
+	headers in the same response #85 ... combine multiple header
+	values as a comma separated list.
+
+2020-04-16 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSOperation.m:
+        Fix for Deadlock in NSOperationQueue #49:
+	If an exception occurs when trying to detach thread,
+	catch it and log it so that locking is not broken by
+	the exception breaking out of the lock protected region.
+
+2020-04-16 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSHTTPCookie.m:
+	* Tests/base/NSHTTPCookie/basic.m:
+        Add testcase for multiple cookies in a header.
+	Fix error parsing a literal string (writing nul terminator
+	to read only memory)
+
+2020-04-16 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSHTTPCookie.m:
+        Rewrite code for separating individual cookies from a
+	comma separated header so it better matches what OSX does
+	(and is hopefully a bit simpler).
+
+2020-04-16 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* configure:
+	* configure.ac:
+        Fix use of OBJC_RUNTIME_LIB before it was initialised.
+	Thanks to johannes@brakensiek.info for spotting this.
+
+2020-04-15 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/GSInsensitiveDictionary.m:
+	* Source/Additions/GSXML.m:
+	* Source/Additions/NSProcessInfo+GNUstepBase.m:
+        Add casts to avoid compiler warnings about types of method
+
+2020-04-15 Richard Frith-Macdonald <richard@frithmacdonald.me.uk>
+
+	* Source/Additions/GSInsensitiveDictionary.m:
+	* Source/Additions/GSMime.m:
+	* Source/Additions/GSObjCRuntime.m:
+	* Source/Additions/GSXML.m:
+	* Source/Additions/NSArray+GNUstepBase.m:
+	* Source/Additions/NSObject+GNUstepBase.m:
+	* Source/Additions/NSProcessInfo+GNUstepBase.m:
+	* Source/Additions/NSPropertyList+GNUstepBase.m:
+        Fully type method implementation pointers to improve compile time
+	type checking.
+
+2020-04-14 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/Additions/NSObject+GNUstepBase.m:
+        When building outside GNUstep (additions for apple), include the
+	runtime declarations and fix error in casting self.
+
+2020-04-14 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/GNUstepBase/GSConfig.h.in:
+	* Headers/GNUstepBase/GSVersionMacros.h:
+	* configure:
+	* configure.ac:
+        Remove last vestiges of MIXED ABI support (it didn't really work), and
+        change code to assume that use of the apple runtime means we have the
+        nonfragile ABI (true for modern apple systems we may be interested in
+        using). Regenerate configure script.
+
+2020-04-14 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSURLProtocol.m:
+        Fix line somehow missed from last commit
+
+2020-04-13 Ivan Vučica <ivan@vucica.net>
+
+	* ANNOUNCE:
+	* Documentation/announce.texi:
+        Normalize the accompanying text for the release announcement across
+        core packages: standardize chapter name and GPG information.
+
+2020-04-13 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSURL.m:
+        Remove custom code for percent escaping and replace it with
+	standard code using custom charactersets.
+
+2020-04-13 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tests/base/NSURL/charsets.m:
+        test the URL component character sets
+
+2020-04-13 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/Foundation/NSURLProtocol.h:
+	* Source/NSURLProtocol.m:
+        Fix [NSURLProtocol -initWithRequest:cachedResponse:client:] to retain
+        the client (up until the last message is sent to it) as OSX does.
+
+2020-04-12 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* CharSets/URLFragmentAllowedCharSet.h:
+	* CharSets/URLHostAllowedCharSet.h:
+	* CharSets/URLPasswordAllowedCharSet.h:
+	* CharSets/URLPathAllowedCharSet.h:
+	* CharSets/URLQueryAllowedCharSet.h:
+	* CharSets/URLUserAllowedCharSet.h:
+	Removed character set data headers from non-standard location.
+	* NSCharacterSet.m:
+	Fixed to load URL characterset data from standard file.
+	Changed bitmap representation to use much less space for charsets
+	residing wholly in the base plane (in particular the URL charsets
+	which are purely ASCII characters).
+	* NSCharacterSetData.h:
+	Regenerated to contain the URL charactersets and to contain the
+	latest Unicode data (3rd Oct 2019).
+
+
+2020-04-10 Richard Frith-Macdonald <richard@frithmacdonald.me.uk>
+
+	* Tests/base/NSURL/basic.m:
+        Use PASS_EQUAL for better diagnostics
+
+2020-04-10 Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/GNUstepBase/GNUstep.h:
+        Add ASSIGNMUTABLECOPY() macro for consistency with ASSIGNCOPY()
+        Wolfgang pointed out that the lack of this macro was uninutitive.
+
+
+2020-04-09 Riccardo Mottola <rm@gnu.org>
+
+	* Source/NSFileManager.m:
+        Implement read and set of File Creation Date attribute on Windows.
+
+2020-04-09 Riccardo Mottola <rm@gnu.org>
+
+	* Headers/GNUstepBase/config.h.in:
+	* configure:
+	* configure.ac:
+        Add tests for non-POSIX lstat() struct members
+
+2020-04-07  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSOperation.m: Fix completion block memory management.
+
+2020-04-05  Ivan Vucica <ivan@vucica.net>
+
+	* ANNOUNCE:
+	* NEWS:
+	* Documentation/ReleaseNotes.gsdoc:
+	* Documentation/news.texi:
+	Update release notes for 1.27.0.
+
+2020-03-29  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSThread.m: Use pthread_setname_np result instead of errno,
+	which fixes setting thread name on platforms where errno is not set.
+
+2020-03-29  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSURLResponse.m: Fix parsing of NSURLResponse content type
+	header.
+
+2020-03-29  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/NSString.m: Attempt to make calls to GSICUCollatorOpen()
+	more consistent and correct for ICU 65.
+
+2020-03-26  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSError.h:
+	* Source/NSError.m: Added NSErrorDomain typedef.
+
+2020-03-12  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/NSURL.m: Fix compiler warnings.
+	* Headers/Foundation/NSLocale.h:
+	* Source/NSLocale.m: Add a few convenience methods from MacOS 10.12.
+
+2020-03-10  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSURL.m: fix –[NSURLComponents setURL:] throwing
+	exception for URLs that don't have all parts.
+
+2020-03-01  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Tests/base/NSBundle/TestInfo,
+	* Tests/base/NSBundle/GNUmakefile.preamble,
+	* Tests/base/NSBundle/resources2.m: Extend test to check for
+	framework resource loading.
+
+2020-03-06  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Resources/Languages/Locale.canonical:
+	Backward compatibility fix for ICU 65 by Fred Kiefer
+	* Resources/Languages/README: Fix trivial typo
+
+2020-02-24  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/objc-load.m: update GSPrivateSymbolPath() so that, on the
+	path where LINKER_GETSYMBOL is not available, we attempt to lookup
+	classes using the prefix ._OBJC_CLASS_ for the 2.0 ABI (earlier
+	ABIs use a prefix of __objc_class_name_ for the class definition.
+
+2020-02-17  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Tools/gdomap.c: When building the list of hosts to be probed to see
+	if they have gdomap servers, fix code to include those explicitly
+	defined in the config file.  Add -S option to list the addresses of
+	the known gdomap servers.
+	* Tools/gdomap.8: Document the new command line option.
+
+2020-02-11  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/Foundation/NSXPCConnection.h: remove unistd.h since
+	workaround broke blocks code.  I guess we have to hope that
+	sys/types.h has gid_t, pid_t, and uid_t on all systems we target.
+
+2020-02-08  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Examples/dictionary.m:
+	* Examples/nsconnection_client.m:
+	* Headers/GNUstepBase/GNUstep.h:
+	* Source/Additions/GSMime.m:
+	* Source/NSConnection.m:
+	* Source/NSDictionary.m:
+	* Source/NSException.m:
+	* Source/NSFileManager.m:
+	* Source/NSFileWrapper.m:
+	* Source/NSTask.m:
+	* Source/NSUserDefaults.m:
+	* Tools/AGSIndex.m:
+	* Tools/AGSOutput.m:
+	* Tools/cvtenc.m:
+	Switch various places away from deprecated CREATE_AUTORELEASE_POOL()
+	to use the ARC-compatible ENTER_POOL and LEAVE_POOL macros.
+
+2020-02-08  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/Foundation/NSXPCConnection.h: Workaround for clash between
+	unistd.h and clang's reserved word __block
+
+2020-02-05  Fred Kiefer <fredkiefer@gmx.de>
+
+	* configure.ac: Use pkg-config to check for libxml.
+	* configure: regenerate
+
+2020-01-23  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/Additions/NSURL+GNUstepBase.m: Handle case where scheme
+	is missing from the URL.
+
+2020-01-20  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/NSPredicate.m: Allow simple predicates on NSDate.
+
+2020-01-20  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSTLS.m: remove certificate key password from hash key of
+	credentials since it's unnecessary there and we don't want it to be
+	logged when debug is on (for security, passwords shouldn't appear
+	in logs).
+
+2020-01-12  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/NSPredicate.m: Add support for NSDate constants.
+
+2020-01-12  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/NSKeyValueObserving.m: Implement two missing KVO methods
+	on NSArray.
+
+2019-12-15  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Headers/GNUstepBase/GSIMap.h: Use GSI_MAP_NODE_IS_EMPTY macros
+	when checking in enumerator.
+	* Source/NSConcreteHashTable.m,
+	* Source/NSConcreteMapTable.m: Revert part of the weak pointer change.
+
+2019-10-17  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Tests/base/NSHashTable/weakObjects.m:
+	* Tests/base/NSMapTable/weakObjects.m:
+	Added tests for [NSHashTable weakObjectsHashTable] and
+	[NSMapTable strongToWeakObjectsMapTable].
+
+2019-11-26  Niels Grewe <niels.grewe@halbordnung.de>
+
+	* Source/NSRunLoop.m:
+	* Tests/base/NSRunLoop/dispatch.m:
+	Fix runloop integration for libdispatch from swift-corelibs
+	* .travis.yml:
+	* travis-deps.yml:
+	Fix CI related to libdispatch.
+
+2019-11-15  Frederik Seiffert <frederik@algoriddim.com>
+
+	* configure.ac: check for unwind.h
+	* configure: regenerate
+	* Source/NSException.m: Added support for backtrace symbolication
+	using libunwind, which will be used when backtrace() is unavailable.
+
+2019-11-14  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Headers/Foundation/NSXPCConnection.h,
+	* Source/NSXPCConnection.m: Fix broken compilation on gcc.
+
+2019-11-12  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* NSTimeZones/NSTimeZones.tar: updated to latest info
+
+2019-11-05  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSProcessInfo.h:
+	* Source/NSPathUtilities.m:
+	* Source/NSProcessInfo.m:
+	Added support for NSTemporaryDirectory() on Android using subfolder
+	in folder returned by Context.getCacheDir(), as there is no official
+	temp dir prior to API level 26. Clean up temp dir on launch in
+	GSInitializeProcessAndroid(). Also use Context.getCacheDir()
+	as NSCachesDirectory (with NSUserDomainMask) on Android.
+
+2019-10-27  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Headers/Foundation/NSUnit.h,
+	* Headers/Foundation/NSMeasurement.h,
+	* Headers/Foundation/NSMeasurementFormatter.h,
+	* Headers/Foundation/NSEnergyFormatter.h,
+	* Headers/Foundation/NSLengthFormatter.h,
+	* Headers/Foundation/NSMassFormatter.h,
+	* Source/NSUnit.m,
+	* Source/NSMeasurement.m,
+	* Source/NSMeasurementFormatter.m,
+	* Source/NSEnergyFormatter.m,
+	* Source/NSLengthFormatter.m,
+	* Source/NSMassFormatter.m,
+	* Source/NSUnit.m: More cleanup on the measurement code.
+
+2019-10-29  Wolfgang Lux  <wolfgang.lux@gmail.com>
+
+	* Source/GSStream.h,
+	* Source/GSStream.m,
+	* Source/GSSocketStream.m:
+	Use a more sane implementation to redirect event handling to the
+	TLS handler while in a handshake.
+
+	* Source/GSTLS.m:
+	Fall back to a sane default if the TLS priority setting is invalid.
+
+2019-10-28  Wolfgang Lux  <wolfgang.lux@gmail.com>
+
+	* Source/GSSocketStream.m:
+	Prevent premature deallocation when a socket is closed while in a
+	TLS handshake.
+
+2019-10-27  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Headers/Foundation/NSUnit.h,
+	* Source/NSUnit.m: Clean up code and fix bugs.
+
+2019-10-17  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/GSDispatch.h:
+	* Source/NSArray.m:
+	* Source/NSDictionary.m:
+	* Source/NSIndexSet.m:
+	* Source/NSOrderedSet.m:
+	* Source/NSSet.m:
+	Perform non-concurrent block enumeration calls in place instead
+	of using serial queue to match Apple platforms.
+
+2019-10-25  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSMapTable.h:
+	* Headers/Foundation/NSHashTable.h:
+	Added generics support to NSMapTable and updated NSMapTable and
+	NSHashTable to use "instancetype".
+
+2019-10-02  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Source/NSDictionary.m: fixed mutable dictionary keyed subscript
+	behavior: assigning nil value via keyed subscript now correctly
+	removes object for key.
+
+2019-09-25  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSProcessInfo.h:
+	* Source/NSPathUtilities.m:
+	* Source/NSProcessInfo.m:
+	Added support for data directory on Android. This makes GNUstep use
+	the path returned by Context.getFilesDir() as the basis for storing
+	data (e.g. NSUserDefaults) and when querying system directory paths
+	(NSLibraryDirectory, NSApplicationSupportDirectory, etc.). Requires
+	calling a new GSInitializeProcessAndroid() initialization function.
+
+2019-09-25  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSArray.m: [-removeObjectsInArray:] add checks to prevent
+	possible crashes, particulary if the method argument is the receiver;
+	crash seen by Wolfgang.
+	* Source/GSSocketStream.m: Fix incorrect key when setting old security
+	level.  Change internal API name to avoid confusion.
+
+2019-09-21  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSTLS.m: Re-order code to avoid setting session priority
+	twice.
+	* Source/NSFileHandle.m: Fix so that setting certificate information
+	does not discard any other options already set.
+
+2019-09-16  Alan Jenkins <alan.christopher.jenkins@gmail.com>
+
+	* Tools/gdomap.c:
+	A couple of is_local_net() tests were wrong: they used "&&"
+	with masks, but that is the logical shortcut operator.
+	The correct bitwise operator is "&".  The result was that
+	is_local_net() was always returning true!
+	Only allow local processes to send GDO_SERVERS requests.
+ 	This request is only useful locally.  Do not allow remote
+	requests for the server list.  Our response can be large,
+	so it would make a great UDP amplification attack.
+
+2019-08-12  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/GSSocketStream.m: Fix for hang when writing large https
+	requests.
+	* Source/GSStream.h: improve diagnostics
+	* Source/GSStream.m: improve diagnostics
+	* Source/NSURLProtocol.m: improve diagnostics
+	* Tests/base/NSURLConnection/Helpers/NSURLConnectionTest.m:
+	* Tests/base/NSURLConnection/test05.m:
+	Bugfix and new testcase for https request with large (over 64KB) body.
+
+2019-08-09  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSRunLoop.m:
+	* Source/NSThread.m:
+	Improve reporting of excess performers so that, when one thread
+	performs selectors in another, you can see the class of the receiver
+	and the selector involved.
+
+2019-08-08  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* configure.ac: check for malloc_usable_sizer()
+	* configure: regenerate
+	* Headers/GNUstepBase/config.h.in: regenerate
+	* Headers/Foundation/NSDebug.h: Add GSMemoryBytes()
+	* Headers/GNUstepBase/NSObject+GNUstepBase.h: Rework memory usage
+	reporting extensions API.
+	* Source/Additions/NSMutableString+GNUstepBase.m:
+	* Source/Additions/NSObject+GNUstepBase.m:
+	* Source/GSArray.m:
+	* Source/GSCountedSet.m:
+	* Source/GSDictionary.m:
+	* Source/GSSet.m:
+	* Source/GSString.m:
+	* Source/NSConcreteHashTable.m:
+	* Source/NSConcreteMapTable.m:
+	* Source/NSData.m:
+	* Source/NSDebug.m:
+	* Source/NSDistantObject.m:
+	* Source/NSObject.m:
+	* Source/NSProxy.m:
+	* Source/NSRunLoop.m:
+	Updates for new memory reporting extensions API.  The parts of this
+	dealing with the size of the contents of an object are now off by
+	default (trying to calculate the size of an object is problematic if
+	it is mutated while you are doing it) but classes can implement
+	-sizeOfContentExcluding: to turn it on if they are thread-safe.
+	Implementations provided for immutable container objects and for all
+	strings.
+
+2019-08-06  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Source/NSData.m: Implement
+	[NSMutableData+dataWithBytesNoCopy:length:freeWhenDone]
+
+2019-07-28  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/NSByteCountFormatter.m: Fix to work in non fragile settings.
+
+2019-07-19  Gregory Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSByteCountFormatter.h
+	* Source/NSByteCountFormatter.m
+	Implementation of NSByteCountFormatter as documented.
+	* Tests/base/NSByteCountFormatter
+	Add test for this class.
+
+2019-07-10  Frederik Seiffert <frederik@algoriddim.com>
+
+	* Headers/Foundation/NSArray.h:
+	* Headers/Foundation/NSOrderedSet.h:
+	Fix generics definition of NSMutableArray and NSMutableOrderedSet.
+	Fix NSArray and NSOrderedSet KVC method types to not use generic type.
+
+2019-07-14  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/NSUbiquitousKeyValueStore.m: Change to use GNUstep
+	formatting. Move simple methods into base class. Correct the usage
+	of long long NSNumber.
+
+2019-07-10  Gregory Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSUbiquitousKeyValueStore.h
+	* Source/NSUbiquitousKeyValueStore.m: Implementation of
+	skeletal version of this class for compilation.  Also put in
+	place a way to make concrete subclasses for various services.
+
+2019-07-02  Wolfgang Lux  <wolfgang.lux@gmail.com>
+
+	* Tests/base/GSTLS/basic.m: Use fixed time zone.
+
+2019-07-02  Gregory John Casamento <greg.casamento@gmail.com>
+
+	* Headers/Foundation/NSOrderedSet.h: Added header for class cluster
+	implementation of NSOrderedSet.
+	* Source/NSOrderedSet.m: Implementation of NSOrderedSet and NSMutableOrderedSet
+	* Source/GSOrderedSet.m: Implementation of concrete class.
+
+2019-07-01  Fred Kiefer <fredkiefer@gmx.de>
+
+	* Source/GSXML.m (fatalErrorFunction): Use correct function to get
+	line number.
+	* Source/NSOperation.m (_execute): Surround with NS_DURING to free
+	lock on error.
+
+2019-06-11  Richard Frith-Macdonald <rfm@gnu.org>
+
+	* Headers/GNUstepBase/GSIArray.h:
+	* Headers/GNUstepBase/NSObject+GNUstepBase.h:
+	* Source/Additions/NSObject+GNUstepBase.m:
+	* Source/GSArray.m:
+	* Source/GSCountedSet.m:
+	* Source/GSDictionary.m:
+	* Source/GSSet.m:
+	* Source/NSArray.m:
+	* Source/NSConcreteHashTable.m:
+	* Source/NSConcreteMapTable.m:
+	* Source/NSData.m:
+	* Source/NSDictionary.m:
+	* Source/NSDistantObject.m:
+	* Source/NSObject.m:
+	* Source/NSProxy.m:
+	* Source/NSSet.m:
+	* Source/NSString.m:
+	Revise mechanism for extention to report memory usage of individual
+	objects. This makes the inclusion of size of objects in ivars a
+	default, while allowing easy extension to include other heap memory.
+	API change not final.
+
+2019-05-23  Frederik Seiffert <frederik@algoriddim.com>
+
+	* configure:
+	* configure.ac:
+	Link against libandroid on Android.
+	* Headers/Foundation/NSBundle.h:
+	* Source/NSBundle.m:
+	Added methods for passing Android asset manager from Java to GNUstep
+	and for getting AAsset/AAssetDir for given path in main bundle.
+	Skip app bundle suffix check on Android. Extended bundle resource
+	paths backbone to check for known paths directly on Android as we
+	can't enumerate directories.
+	Extended -localizations method to check for known localizations
+	directly (requires setting userLanguages in NSUserDefaults).
+	Extracted path cache cleaning into separate method.
+	* Source/GSFileHandle.h:
+	* Source/GSFileHandle.m:
+	Added file handle support for reading Android assets from main bundle.
+	* Source/NSData.m:
+	Added support for reading Android assets from main bundle in
+	readContentsOfFile(). This is also used by all other
+	-initWithContentsOfFile: and related methods from other classes.
+	* Source/NSFileManager.m:
+	Added support for Android assets from main bundle in
+	fileExistsAtPath:isDirectory:, isReadableFileAtPath:,
+	NSDirectoryEnumerator, and copying from assets. Extended
+	GSAttrDictionary with basic support for Android assets.
+	* Source/NSProcessInfo.m:
+	Added +initialize method to auto-initialize NSProcessInfo on Android
+	using fake executable path "/data/data/<app identifier>/exe" (Android
+	apps don't have a real executable path).
+
 2019-05-20  Frederik Seiffert <frederik@algoriddim.com>
 
 	* Source/NSLog.m: Have all logs go to syslog on android.
@@ -22,7 +2442,7 @@
 	inverted) and ensures that both the handle and drain functions are
 	available.
 
-2019-02-16  Richard Frith-Macdonald <rfm@gnu.org>
+2019-04-16  Richard Frith-Macdonald <rfm@gnu.org>
 
 	* Source/NSString.m: Removed public functions which could conflict
 	with application code.  Rewrote percent unescaping to avoid possible

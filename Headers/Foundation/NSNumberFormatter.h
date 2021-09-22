@@ -15,12 +15,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */
 
 #ifndef _NSNumberFormatter_h_GNUSTEP_BASE_INCLUDE
@@ -118,6 +118,7 @@ typedef NSUInteger NSNumberFormatterRoundingMode;
  * of attributes for positive and negative numbers, and for specific cases
  * including 0, NaN, and nil... </p>
  */
+GS_EXPORT_CLASS
 @interface NSNumberFormatter : NSFormatter
 {
 #if	GS_EXPOSE(NSNumberFormatter)

@@ -15,12 +15,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    */
 
@@ -37,7 +37,8 @@ extern "C" {
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_6, GS_API_LATEST)
 #import <GNUstepBase/GSBlocks.h>
 DEFINE_BLOCK_TYPE_NO_ARGS(GSOperationCompletionBlock, void);
-#endif
+DEFINE_BLOCK_TYPE_NO_ARGS(GSBlockOperationBlock, void);
+#endif  
 
 @class NSMutableArray;
 
@@ -51,6 +52,7 @@ enum {
 
 typedef NSInteger NSOperationQueuePriority;
 
+GS_EXPORT_CLASS
 @interface NSOperation : NSObject
 {
 #if	GS_NONFRAGILE
@@ -92,7 +94,7 @@ typedef NSInteger NSOperationQueuePriority;
 /** Returns all the dependencies of the receiver in the order in which they
  * were added.
  */
-- (NSArray *)dependencies;
+- (NSArray *) dependencies;
 
 /** This method should return YES if the -cancel method has been called.<br />
  * NB. a cancelled operation may still be executing.
@@ -199,6 +201,20 @@ typedef NSInteger NSOperationQueuePriority;
 
 @end
 
+GS_EXPORT_CLASS
+@interface NSBlockOperation : NSOperation
+{
+  @private
+    NSMutableArray *_executionBlocks;
+    void *_reserved;
+}
+
+// Managing the blocks in the Operation
++ (instancetype) blockOperationWithBlock: (GSBlockOperationBlock)block;
+- (void) addExecutionBlock: (GSBlockOperationBlock)block;
+- (NSArray *) executionBlocks;
+
+@end
 
 /**
  * NSOperationQueue
@@ -209,6 +225,7 @@ enum {
    NSOperationQueueDefaultMaxConcurrentOperationCount = -1
 };
 
+GS_EXPORT_CLASS
 @interface NSOperationQueue : NSObject
 {
 #if	GS_NONFRAGILE
@@ -241,6 +258,10 @@ enum {
  */
 - (void) addOperations: (NSArray *)ops
      waitUntilFinished: (BOOL)shouldWait;
+  
+/** This method wraps a block in an operation and adds it to the queue.
+ */
+- (void) addOperationWithBlock: (GSBlockOperationBlock)block;
 #endif
 
 /** Cancels all outstanding operations in the queue.
@@ -294,6 +315,8 @@ enum {
  */
 - (void) waitUntilAllOperationsAreFinished;
 @end
+
+
 
 #if	defined(__cplusplus)
 }

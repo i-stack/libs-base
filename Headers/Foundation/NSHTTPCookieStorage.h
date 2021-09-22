@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __NSHTTPCookieStorage_h_GNUSTEP_BASE_INCLUDE
@@ -55,19 +55,19 @@ typedef NSUInteger NSHTTPCookieAcceptPolicy;
  * Posted to the distributed notification center when the cookie
  * accept policy is changed.
  */
-extern NSString * const NSHTTPCookieManagerAcceptPolicyChangedNotification;
+GS_EXPORT NSString * const NSHTTPCookieManagerAcceptPolicyChangedNotification;
 
 /**
  * Posted when the set of cookies changes
  */
-extern NSString * const NSHTTPCookieManagerCookiesChangedNotification;
+GS_EXPORT NSString * const NSHTTPCookieManagerCookiesChangedNotification;
 
 
 /**
  * The NSHTTPCookieStorage class provides a shared instance which handles
  * the shared cookie store.<br />
  */
-
+GS_EXPORT_CLASS
 @interface NSHTTPCookieStorage :  NSObject
 {
 #if	GS_EXPOSE(NSHTTPCookieStorage)

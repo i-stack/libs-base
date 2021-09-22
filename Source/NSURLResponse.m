@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #import "common.h"
@@ -81,7 +81,8 @@ typedef struct {
 	}
       s = [NSScanner scannerWithString: v];
       p = [GSMimeParser new];
-      c = AUTORELEASE([GSMimeHeader new]);
+      c = AUTORELEASE([[GSMimeHeader alloc] initWithName: @"content-type"
+                                                   value: nil]);
       /* We just set the header body, so we know it will scan and don't need
        * to check the retrurn type.
        */
@@ -113,12 +114,29 @@ typedef struct {
     {
       GSMimeHeader	*h;
 
+      /* Remove existing headers matching the ones we are setting.
+       */
+      e = [(NSArray*)headers objectEnumerator];
+      while ((h = [e nextObject]) != nil)
+	{
+	  NSString	*n = [h namePreservingCase: YES];
+
+	  [this->headers removeObjectForKey: n];
+	}
+      /* Set new headers, joining values where we have multiple headers
+       * with the same name.
+       */
       e = [(NSArray*)headers objectEnumerator];
       while ((h = [e nextObject]) != nil)
         {
 	  NSString	*n = [h namePreservingCase: YES];
+	  NSString	*o = [this->headers objectForKey: n];
 	  NSString	*v = [h fullValue];
 
+	  if (nil != o)
+	    {
+	      n = [NSString stringWithFormat: @"%@, %@", o, n];
+	    }
 	  [self _setValue: v forHTTPHeaderField: n];
 	}
     }
@@ -201,6 +219,11 @@ typedef struct {
       NSZoneFree([self zone], this);
     }
   [super dealloc];
+}
+
+- (NSString*) description
+{
+  return [NSString stringWithFormat: @"%@ { URL: %@ } { Status Code: %d, Headers %@ }", [super description], this->URL, this->statusCode, this->headers];
 }
 
 - (void) encodeWithCoder: (NSCoder*)aCoder

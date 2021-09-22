@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */
 
 #import "common.h"
@@ -34,8 +34,8 @@
 #import "Foundation/NSDistantObject.h"
 #import "Foundation/NSData.h"
 #import "GSInvocation.h"
+#import "GSPThread.h"
 #import "GNUstepBase/GSObjCRuntime.h"
-#import <pthread.h>
 #import "cifframe.h"
 #import "GSPrivate.h"
 
@@ -190,26 +190,26 @@ IMP gs_objc_msg_forward (SEL sel)
   return gs_objc_msg_forward2 (nil, sel);
 }
 #ifdef __GNUSTEP_RUNTIME__
-pthread_key_t thread_slot_key;
+gs_thread_key_t thread_slot_key;
 static struct objc_slot *
 gs_objc_msg_forward3(id receiver, SEL op)
 {
   /* The slot has its version set to 0, so it can not be cached.  This makes it
    * safe to free it when the thread exits. */
-  struct objc_slot *slot = pthread_getspecific(thread_slot_key);
+  struct objc_slot *slot = GS_THREAD_KEY_GET(thread_slot_key);
 
   if (NULL == slot)
     {
       slot = calloc(sizeof(struct objc_slot), 1);
-      pthread_setspecific(thread_slot_key, slot);
+      GS_THREAD_KEY_SET(thread_slot_key, slot);
     }
   slot->method = gs_objc_msg_forward2(receiver, op);
   return slot;
 }
 
 /** Hidden by legacy API define.  Declare it locally */
-BOOL class_isMetaClass(Class cls);
-BOOL class_respondsToSelector(Class cls, SEL sel);
+GS_IMPORT BOOL class_isMetaClass(Class cls);
+GS_IMPORT BOOL class_respondsToSelector(Class cls, SEL sel);
 
 /**
  * Runtime hook used to provide message redirections with libobjc2.
@@ -256,10 +256,18 @@ static id gs_objc_proxy_lookup(id receiver, SEL op)
 }
 #endif
 
+#ifdef __GNUSTEP_RUNTIME__
+static void GS_WINAPI
+exitedThread(void *slot)
+{
+  free(slot);
+}
+#endif
+
 + (void) load
 {
 #ifdef __GNUSTEP_RUNTIME__
-  pthread_key_create(&thread_slot_key, free);
+  GS_THREAD_KEY_INIT(thread_slot_key, exitedThread);
   __objc_msg_forward3 = gs_objc_msg_forward3;
   __objc_msg_forward2 = gs_objc_msg_forward2;
   objc_proxy_lookup = gs_objc_proxy_lookup;

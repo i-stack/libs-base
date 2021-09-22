@@ -48,16 +48,15 @@
 #import "GNUstepBase/NSObject+GNUstepBase.h"
 
 #import "../GSPrivate.h"
+#import "../GSPThread.h"
 
 #include <objc/Protocol.h>
 
 #include <stdio.h>
 #include <ctype.h>
 
-#ifndef NeXT_RUNTIME
-#include <pthread.h>
-#endif
 #ifdef __GNUSTEP_RUNTIME__
+GS_IMPORT
 extern struct objc_slot	*objc_get_slot(Class, SEL);
 #endif
 
@@ -728,18 +727,17 @@ gs_string_hash(const char *s)
 #define GSI_MAP_VTYPES GSUNION_PTR
 
 #include "GNUstepBase/GSIMap.h"
-#include <pthread.h>
 
 static GSIMapTable_t protocol_by_name;
 static BOOL protocol_by_name_init = NO;
-static pthread_mutex_t protocol_by_name_lock = PTHREAD_MUTEX_INITIALIZER;
+static gs_mutex_t protocol_by_name_lock = GS_MUTEX_INIT_STATIC;
 
 /* Not sure about the semantics of inlining
    functions with static variables.  */
 static void
 gs_init_protocol_lock(void)
 {
-  pthread_mutex_lock(&protocol_by_name_lock);
+  GS_MUTEX_LOCK(protocol_by_name_lock);
   if (protocol_by_name_init == NO)
   	{
 	  GSIMapInitWithZoneAndCapacity (&protocol_by_name,
@@ -747,7 +745,7 @@ gs_init_protocol_lock(void)
 					 128);
 	  protocol_by_name_init = YES;
 	}
-  pthread_mutex_unlock(&protocol_by_name_lock);
+  GS_MUTEX_UNLOCK(protocol_by_name_lock);
 }
 
 void
@@ -762,7 +760,7 @@ GSRegisterProtocol(Protocol *proto)
     {
       GSIMapNode node;
 
-      pthread_mutex_lock(&protocol_by_name_lock);
+      GS_MUTEX_LOCK(protocol_by_name_lock);
       node = GSIMapNodeForKey(&protocol_by_name,
 	(GSIMapKey)protocol_getName(proto));
       if (node == 0)
@@ -771,7 +769,7 @@ GSRegisterProtocol(Protocol *proto)
 	    (GSIMapKey)(void*)protocol_getName(proto),
 	    (GSIMapVal)(void*)proto);
 	}
-      pthread_mutex_unlock(&protocol_by_name_lock);
+      GS_MUTEX_UNLOCK(protocol_by_name_lock);
     }
 }
 
@@ -793,7 +791,7 @@ GSProtocolFromName(const char *name)
     }
   else
     {
-      pthread_mutex_lock(&protocol_by_name_lock);
+      GS_MUTEX_LOCK(protocol_by_name_lock);
       node = GSIMapNodeForKey(&protocol_by_name, (GSIMapKey) name);
 
       if (node)
@@ -812,7 +810,7 @@ GSProtocolFromName(const char *name)
 		(GSIMapVal)(void*)p);
 	    }
 	}
-      pthread_mutex_unlock(&protocol_by_name_lock);
+      GS_MUTEX_UNLOCK(protocol_by_name_lock);
 
     }
 
@@ -1090,7 +1088,7 @@ GSObjCGetVal(NSObject *self, const char *key, SEL sel,
 	    }
 	    break;
 
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
           case _C_BOOL:
             {
               _Bool     v;
@@ -1555,7 +1553,7 @@ GSObjCSetVal(NSObject *self, const char *key, id val, SEL sel,
 	    }
 	    break;
 
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
           case _C_BOOL:
             {
               _Bool     v = (_Bool)[val boolValue];
@@ -1983,7 +1981,7 @@ GSAutoreleasedBuffer(unsigned size)
   static Class	buffer_class = 0;
   static Class	autorelease_class;
   static SEL	autorelease_sel;
-  static IMP	autorelease_imp;
+  static id	(*autorelease_imp)(Class, SEL, id);
   static int	instance_size;
   static int	offset;
   NSObject	*o;
@@ -1995,7 +1993,8 @@ GSAutoreleasedBuffer(unsigned size)
       offset = instance_size % ALIGN;
       autorelease_class = [NSAutoreleasePool class];
       autorelease_sel = @selector(addObject:);
-      autorelease_imp = [autorelease_class methodForSelector: autorelease_sel];
+      autorelease_imp = (id (*)(Class, SEL, id))
+        [autorelease_class methodForSelector: autorelease_sel];
     }
   o = (NSObject*)NSAllocateObject(buffer_class,
     size + offset, NSDefaultMallocZone());
@@ -2065,7 +2064,9 @@ GSPrintf (FILE *fptr, NSString* format, ...)
 #   define	AADD(c, o) 
 #   define	AREM(c, o) 
 # endif
-
+#else
+# define	AADD(c, o) 
+# define	AREM(c, o) 
 #endif	/* defined(GNUSTEP_BASE_LIBRARY) */
 
 void
@@ -2085,6 +2086,256 @@ GSClassSwizzle(id instance, Class newClass)
       object_setClass(instance, newClass);
       newClass = object_getClass(instance);
       AADD(newClass, instance);
+    }
+}
+
+void
+GSObjCPrint(void *base, void *item)
+{
+  FILE	*fptr = stdout;
+  Class	c;
+  id	o;
+
+  if (NULL == base)
+    {
+      fprintf(fptr, "null\n");
+      return;
+    }
+  if (GSObjCIsClass((Class)base))
+    {
+      o = nil;
+      c = (Class)base;
+      if (NULL == item)
+	{
+	  fprintf(fptr, "%p is class %s {\n", base, GSNameFromClass(c));
+	}
+    }
+  else if (GSObjCIsInstance((id)base))
+    {
+      o = (id)base;
+      c = GSObjCClass(o);
+      if (NULL == item)
+	{
+	  fprintf(fptr, "%p is instance of class %s (%p) {\n",
+	    base, GSNameFromClass(c), c);
+	}
+    }
+  else
+    {
+      fprintf(fptr, "%p is not a class or instance\n", base);
+      return;
+    }
+
+  while (c != Nil)
+    {
+      unsigned	count;
+      Ivar	*ivars = class_copyIvarList(c, &count);
+
+      while (count-- > 0)
+	{
+	  Ivar		ivar = ivars[count];
+	  const char	*name = ivar_getName(ivar);
+	  const char	*type = ivar_getTypeEncoding(ivar);
+	  ptrdiff_t	offset = ivar_getOffset(ivar);
+	  const char	*t;
+
+	  if (NULL == item)
+	    {
+	      fprintf(fptr, "  (%ld) %s", (long)offset, name);
+	    }
+	  else if (strcmp(item, name) == 0)
+	    {
+	      continue;	// not a match
+	    }
+	  else
+	    {
+	      fprintf(fptr, "(%ld) %s", (long)offset, name);
+	    }
+
+	  if (nil == o)
+	    {
+	      /* We have no instance ... display offset to ivar
+	       */
+	      fprintf(fptr, "\n");
+	      continue;
+	    }
+
+	  fprintf(fptr, " = ");
+
+	  t = GSSkipTypeQualifierAndLayoutInfo(type);
+	  switch (*t)
+	    {
+	      case _C_ID:
+		{
+		  id	v = *(id *)((char *)o + offset);
+
+		  if (nil == v)
+		    {
+		      fprintf(fptr, "nil\n");
+		    }
+		  else
+		    {
+		      fprintf(fptr, "%s instance %p\n",
+			GSNameFromClass(GSObjCClass(v)), v);
+		    }
+		}
+		break;
+
+	      case _C_CLASS:
+		{
+		  Class	v = *(Class *)((char *)o + offset);
+
+		  if (Nil == v)
+		    {
+		      fprintf(fptr, "Nil\n");
+		    }
+		  else
+		    {
+		      fprintf(fptr, "%s class %p\n", GSNameFromClass(v), v);
+		    }
+		}
+		break;
+
+	      case _C_CHR:
+		{
+		  signed char	v = *(char *)((char *)o + offset);
+
+		  fprintf(fptr, "%c %d\n", v, (int)v);
+		}
+		break;
+
+	      case _C_UCHR:
+		{
+		  unsigned char	v = *(unsigned char *)((char *)o + offset);
+
+		  fprintf(fptr, "%c %u\n", v, (unsigned)v);
+		}
+		break;
+
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
+	      case _C_BOOL:
+		{
+		  _Bool     v = *(_Bool *)((char *)o + offset);
+
+		  fprintf(fptr, "%s %u\n", (v ? "YES" : "NO"), (unsigned)v);
+		}
+		break;
+#endif
+
+	      case _C_SHT:
+		{
+		  short	v = *(short *)((char *)o + offset);
+
+		  fprintf(fptr, "%hd\n", v);
+		}
+		break;
+
+	      case _C_USHT:
+		{
+		  unsigned short	v;
+
+		  v = *(unsigned short *)((char *)o + offset);
+		  fprintf(fptr, "%hu\n", v);
+		}
+		break;
+
+	      case _C_INT:
+		{
+		  int	v = *(int *)((char *)o + offset);
+
+		  fprintf(fptr, "%d\n", v);
+		}
+		break;
+
+	      case _C_UINT:
+		{
+		  unsigned int	v = *(unsigned int *)((char *)o + offset);
+
+		  fprintf(fptr, "%u\n", v);
+		}
+		break;
+
+	      case _C_LNG:
+		{
+		  long	v = *(long *)((char *)o + offset);
+
+		  fprintf(fptr, "%ld\n", v);
+		}
+		break;
+
+	      case _C_ULNG:
+		{
+		  unsigned long	v = *(unsigned long *)((char *)o + offset);
+
+		  fprintf(fptr, "%lu\n", v);
+		}
+		break;
+
+#ifdef	_C_LNG_LNG
+	      case _C_LNG_LNG:
+		{
+		  long long	v = *(long long *)((char *)o + offset);
+
+		  fprintf(fptr, "%lld\n", v);
+		}
+		break;
+#endif
+
+#ifdef	_C_ULNG_LNG
+	      case _C_ULNG_LNG:
+		{
+		  unsigned long long	v;
+
+		  v = *(unsigned long long *)((char *)o + offset);
+		  fprintf(fptr, "%llu\n", v);
+		}
+		break;
+#endif
+
+	      case _C_FLT:
+		{
+		  float	v = *(float *)((char *)o + offset);
+
+		  fprintf(fptr, "%g\n", v);
+		}
+		break;
+
+	      case _C_DBL:
+		{
+		  double	v = *(double *)((char *)o + offset);
+
+		  fprintf(fptr, "%g\n", v);
+		}
+		break;
+
+	      case _C_VOID:
+		{
+		  fprintf(fptr, "void ???\n");
+		}
+		break;
+
+	      case _C_STRUCT_B:
+		{
+		  fprintf(fptr, "struct not supported\n");
+		}
+		break;
+
+	      default:
+		{
+		  fprintf(fptr, "type %s not supported\n", type);
+		}
+		break;
+	    }
+	}
+      if (ivars != NULL)
+	{
+          free(ivars);
+	}
+      c = class_getSuperclass(c);
+    }
+  if (NULL == item)
+    {
+      fprintf(fptr, "}\n");
     }
 }
 

@@ -18,12 +18,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSConnection class reference</title>
    $Date$ $Revision$
@@ -181,15 +181,6 @@ GSRunLoopForThread(NSThread *aThread)
 #define GSM_UNLOCK(X) \
 {NSDebugMLLog(@"GSConnection",@"Unlock %@",X);[X unlock];}
 
-NSString * const NSDestinationInvalidException =
-  @"NSDestinationInvalidException";
-NSString * const NSFailedAuthenticationException =
-  @"NSFailedAuthenticationExceptions";
-NSString * const NSObjectInaccessibleException =
-  @"NSObjectInaccessibleException";
-NSString * const NSObjectNotAvailableException =
-  @"NSObjectNotAvailableException";
-
 /*
  * Cache various class pointers.
  */
@@ -335,7 +326,7 @@ GS_PRIVATE_INTERNAL(NSConnection)
 - (void) removeLocalObject: (NSDistantObject*)anObj;
 
 - (void) _doneInReply: (NSPortCoder*)c;
-- (void) _doneInRmc: (NSPortCoder*)c;
+- (void) _doneInRmc: (NSPortCoder*) NS_CONSUMED c;
 - (void) _failInRmc: (NSPortCoder*)c;
 - (void) _failOutRmc: (NSPortCoder*)c;
 - (NSPortCoder*) _getReplyRmc: (int)sn for: (const char*)request;
@@ -2026,8 +2017,7 @@ static NSLock	*cached_proxies_gate = nil;
 
   [self _sendOutRmc: op type: METHOD_REQUEST sequence: seq];
   name = sel_getName([inv selector]);
-  NSDebugMLLog(@"NSConnection", @"Sent message %s RMC %d to 0x%"PRIxPTR,
-    name, seq, (NSUInteger)self);
+  NSDebugMLLog(@"RMC", @"Sent message %s RMC %d to %p", name, seq, self);
 
   if (needsResponse == NO)
     {
@@ -2923,14 +2913,14 @@ static NSLock	*cached_proxies_gate = nil;
   NSParameterAssert (IisValid);
 
   [rmc decodeValueOfObjCType: @encode(int) at: &sequence];
-  [rmc decodeValueOfObjCType: @encode(typeof(count)) at: &count];
+  [rmc decodeValueOfObjCType: @encode(__typeof__(count)) at: &count];
 
   for (pos = 0; pos < count; pos++)
     {
       unsigned		target;
       NSDistantObject	*prox;
 
-      [rmc decodeValueOfObjCType: @encode(typeof(target)) at: &target];
+      [rmc decodeValueOfObjCType: @encode(__typeof__(target)) at: &target];
 
       prox = [self includesLocalTarget: target];
       if (prox != 0)
@@ -2985,7 +2975,7 @@ static NSLock	*cached_proxies_gate = nil;
   [rmc decodeValueOfObjCType: @encode(int) at: &sequence];
   op = [self _newOutRmc: sequence generate: 0 reply: NO];
 
-  [rmc decodeValueOfObjCType: @encode(typeof(target)) at: &target];
+  [rmc decodeValueOfObjCType: @encode(__typeof__(target)) at: &target];
   [self _doneInRmc: rmc];
 
   if (debug_connection > 3)
@@ -3143,8 +3133,8 @@ static NSLock	*cached_proxies_gate = nil;
     {
       BOOL	warned = NO;
 
-      if (debug_connection > 5)
-	NSLog(@"Waiting for reply %d (%s) on %@", sn, request, self);
+      NSDebugMLLog(@"RMC", @"Waiting for reply RMC %d (%s) on %@",
+        sn, request, self);
       GS_M_LOCK(IrefGate); isLocked = YES;
       while (IisValid == YES
 	&& (node = GSIMapNodeForKey(IreplyMap, (GSIMapKey)(NSUInteger)sn)) != 0
@@ -3253,8 +3243,8 @@ static NSLock	*cached_proxies_gate = nil;
     }
   NS_ENDHANDLER
 
-  NSDebugMLLog(@"NSConnection", @"Consuming reply %d (%s) on %"PRIxPTR,
-    sn, request, (NSUInteger)self);
+  NSDebugMLLog(@"RMC", @"Consuming reply RMC %d (%s) on %p",
+    sn, request, self);
   return rmc;
 }
 
@@ -3823,7 +3813,7 @@ static NSLock	*cached_proxies_gate = nil;
 	      int	seq_num;
 
 	      op = [self _newOutRmc: 0 generate: &seq_num reply: YES];
-	      [op encodeValueOfObjCType: @encode(typeof(target)) at: &target];
+	      [op encodeValueOfObjCType: @encode(__typeof__(target)) at: &target];
 	      [self _sendOutRmc: op type: PROXY_RETAIN sequence: seq_num];
 
 	      ip = [self _getReplyRmc: seq_num for: "retain"];

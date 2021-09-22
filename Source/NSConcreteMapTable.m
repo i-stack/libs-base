@@ -16,12 +16,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    $Date: 2008-06-08 11:38:33 +0100 (Sun, 08 Jun 2008) $ $Revision: 26606 $
    */
@@ -81,6 +81,10 @@ typedef GSIMapNode_t *GSIMapNode;
 
 #define	GSI_MAP_KTYPES	GSUNION_PTR | GSUNION_OBJ
 #define	GSI_MAP_VTYPES	GSUNION_PTR | GSUNION_OBJ
+#define IS_WEAK_KEY(M) \
+  M->cb.pf.k.options & (NSPointerFunctionsZeroingWeakMemory | NSPointerFunctionsWeakMemory)
+#define IS_WEAK_VALUE(M) \
+  M->cb.pf.v.options & (NSPointerFunctionsZeroingWeakMemory | NSPointerFunctionsWeakMemory)
 #define GSI_MAP_HASH(M, X)\
  (M->legacy ? M->cb.old.k.hash(M, X.ptr) \
  : pointerFunctionsHash(&M->cb.pf.k, X.ptr))
@@ -89,16 +93,16 @@ typedef GSIMapNode_t *GSIMapNode;
  : pointerFunctionsEqual(&M->cb.pf.k, X.ptr, Y.ptr))
 #define GSI_MAP_RELEASE_KEY(M, X)\
  (M->legacy ? M->cb.old.k.release(M, X.ptr) \
- : pointerFunctionsRelinquish(&M->cb.pf.k, &X.ptr))
+  : IS_WEAK_KEY(M) ? nil : pointerFunctionsRelinquish(&M->cb.pf.k, &X.ptr))
 #define GSI_MAP_RETAIN_KEY(M, X)\
  (M->legacy ? M->cb.old.k.retain(M, X.ptr) \
- : pointerFunctionsAcquire(&M->cb.pf.k, &X.ptr, X.ptr))
+  : IS_WEAK_KEY(M) ? nil : pointerFunctionsAcquire(&M->cb.pf.k, &X.ptr, X.ptr))
 #define GSI_MAP_RELEASE_VAL(M, X)\
  (M->legacy ? M->cb.old.v.release(M, X.ptr) \
- : pointerFunctionsRelinquish(&M->cb.pf.v, &X.ptr))
+  : IS_WEAK_VALUE(M) ? nil : pointerFunctionsRelinquish(&M->cb.pf.v, &X.ptr))
 #define GSI_MAP_RETAIN_VAL(M, X)\
  (M->legacy ? M->cb.old.v.retain(M, X.ptr) \
- : pointerFunctionsAcquire(&M->cb.pf.v, &X.ptr, X.ptr))
+  : IS_WEAK_VALUE(M) ? nil : pointerFunctionsAcquire(&M->cb.pf.v, &X.ptr, X.ptr))
 
 /* 2013-05-25 Here are the macros originally added for GC/ARC ...
  * but they caused map table entries to be doubly retained :-(
@@ -120,22 +124,21 @@ typedef GSIMapNode_t *GSIMapNode;
 	if (M->legacy) \
           *(addr) = x;\
 	else\
-	  *(id*)(addr) = (x).obj;
+	  (IS_WEAK_KEY(M) ? pointerFunctionsAssign(&M->cb.pf.k, (void**)addr, (x).obj) : (*(id*)(addr) = (x).obj));
 #define GSI_MAP_WRITE_VAL(M, addr, x) \
 	if (M->legacy) \
           *(addr) = x;\
 	else\
-	  *(id*)(addr) = (x).obj;
+	  (IS_WEAK_VALUE(M) ? pointerFunctionsAssign(&M->cb.pf.v, (void**)addr, (x).obj) : (*(id*)(addr) = (x).obj));
 #define GSI_MAP_READ_KEY(M,addr) \
 	(M->legacy ? *(addr)\
-	  : (typeof(*addr))pointerFunctionsRead(&M->cb.pf.k, (void**)addr))
+	  : (__typeof__(*addr))pointerFunctionsRead(&M->cb.pf.k, (void**)addr))
 #define GSI_MAP_READ_VALUE(M,addr) \
 	(M->legacy ? *(addr)\
-	  : (typeof(*addr))pointerFunctionsRead(&M->cb.pf.v, (void**)addr))
+	  : (__typeof__(*addr))pointerFunctionsRead(&M->cb.pf.v, (void**)addr))
 #define GSI_MAP_ZEROED(M)\
         (M->legacy ? 0\
-          : (((M->cb.pf.k.options | M->cb.pf.v.options)\
-            & NSPointerFunctionsZeroingWeakMemory) ? YES : NO))
+	  : (IS_WEAK_KEY(M) || IS_WEAK_VALUE(M)) ? YES : NO)
 
 #define	GSI_MAP_ENUMERATOR	NSMapEnumerator
 
@@ -879,18 +882,20 @@ NSNextMapEnumeratorPair(NSMapEnumerator *enumerator,
 	}
       else
 	{
-	  if (key != 0)
-	    {
-	      *key = n->key.ptr;
+          NSConcreteMapTable *map = enumerator->map;
+
+          if (key != 0)
+            {
+	      *key = GSI_MAP_READ_KEY(map, &n->key).ptr;
 	    }
 	  else
 	    {
 	      NSWarnFLog(@"Null key return address");
-	    }
+            }
 
 	  if (value != 0)
 	    {
-	      *value = n->value.ptr;
+	      *value = GSI_MAP_READ_VALUE(map, &n->value).ptr;
 	    }
 	  else
 	    {
@@ -969,7 +974,7 @@ NSResetMapTable(NSMapTable *table)
  * is appended.  The appropriate describe functions are used to generate
  * the strings for each key and value.
  */
-NSString *
+GS_DECLARE NSString *
 NSStringFromMapTable(NSMapTable *table)
 {
   if (table == nil)
@@ -1170,6 +1175,13 @@ const NSMapTableValueCallBacks NSOwnedPointerMapValueCallBacks =
 
 @implementation	NSConcreteMapTable
 
+- (NSUInteger) sizeOfContentExcluding: (NSHashTable*)exclude
+{
+  /* Can't safely calculate for mutable object; just buffer size
+   */
+  return nodeCount * sizeof(GSIMapNode);
+}
+
 + (void) initialize
 {
   if (concreteClass == Nil)
@@ -1194,7 +1206,7 @@ const NSMapTableValueCallBacks NSOwnedPointerMapValueCallBacks =
 				   objects: (id*)stackbuf
 				     count: (NSUInteger)len
 {
-  state->mutationsPtr = (unsigned long *)&version;
+  state->mutationsPtr = &version;
   return GSIMapCountByEnumeratingWithStateObjectsCount
     (self, state, stackbuf, len);
 }
@@ -1325,7 +1337,7 @@ const NSMapTableValueCallBacks NSOwnedPointerMapValueCallBacks =
 
       if (node)
 	{
-	  return node->value.obj;
+	  return GSI_MAP_READ_VALUE(self, &node->value).obj;
 	}
     }
   return nil;
@@ -1377,10 +1389,10 @@ const NSMapTableValueCallBacks NSOwnedPointerMapValueCallBacks =
   node = GSIMapNodeForKey(self, (GSIMapKey)aKey);
   if (node)
     {
-      if (node->value.obj != anObject)
+      if (GSI_MAP_READ_VALUE(self, &node->value).obj != anObject)
 	{
           GSI_MAP_RELEASE_VAL(self, node->value);
-          node->value.obj = anObject;
+          GSI_MAP_WRITE_VAL(self, &node->value, (GSIMapVal)anObject);
           GSI_MAP_RETAIN_VAL(self, node->value);
 	  version++;
 	}
@@ -1400,29 +1412,6 @@ const NSMapTableValueCallBacks NSOwnedPointerMapValueCallBacks =
   return [p autorelease];
 }
 
-- (NSUInteger) sizeInBytesExcluding: (NSHashTable*)exclude
-{
-  NSUInteger	size = [super sizeInBytesExcluding: exclude];
-
-  if (size > 0)
-    {
-/* If we knew that this table held objects, we could return their size...
- *
- *    GSIMapEnumerator_t	enumerator = GSIMapEnumeratorForMap(self);
- *    GSIMapNode 		node = GSIMapEnumeratorNextNode(&enumerator);
- *
- *    while (node != 0)
- *      {
- *        node = GSIMapEnumeratorNextNode(&enumerator);
- *        size += [node->key.obj sizeInBytesExcluding: exclude];
- *        size += [node->value.obj sizeInBytesExcluding: exclude];
- *      }
- *    GSIMapEndEnumerator(&enumerator);
- */
-      size += GSIMapSize(self) - instanceSize;
-    }
-  return size;
-}
 @end
 
 @implementation NSConcreteMapTableKeyEnumerator

@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __NSURLProtocol_h_GNUSTEP_BASE_INCLUDE
@@ -44,6 +44,7 @@ extern "C" {
 @class NSURLProtocol;
 @class NSURLRequest;
 @class NSURLResponse;
+@class NSURLSessionTask;
 
 
 /**
@@ -116,6 +117,7 @@ extern "C" {
  * ever be done by other classes within the URL loading system.
  * </p>
  */
+GS_EXPORT_CLASS
 @interface NSURLProtocol : NSObject
 {
 #if	GS_EXPOSE(NSURLProtocol)
@@ -171,16 +173,26 @@ extern "C" {
  * The cachedResponse may be the result of a previous load of the
  * request (in which case the protocol may validate and use it).<br />
  * The client is the object which receives messages about the progress
- * of the load.
+ * of the load.  This is retained by the protocl instance and is released
+ * once the last message has been sent to it.
  */
 - (id) initWithRequest: (NSURLRequest *)request
 	cachedResponse: (NSCachedURLResponse *)cachedResponse
 		client: (id <NSURLProtocolClient>)client;
 
+- (instancetype) initWithTask: (NSURLSessionTask*)task 
+               cachedResponse: (NSCachedURLResponse*)cachedResponse 
+                       client: (id<NSURLProtocolClient>)client;
+
 /**
  * Returns the request handled by the receiver.
  */
 - (NSURLRequest *) request;
+
+/**
+ * Returns the task handled by the receiver.
+ */
+- (NSURLSessionTask *) task;
 
 @end
 

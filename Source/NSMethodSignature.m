@@ -16,12 +16,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSMethodSignature class reference</title>
    $Date$ $Revision$
@@ -63,7 +63,7 @@ skip_offset(const char *ptr)
 }
 
 #define ROUND(V, A) \
-  ({ typeof(V) __v=(V); typeof(A) __a=(A); \
+  ({ __typeof__(V) __v=(V); __typeof__(A) __a=(A); \
      __a*((__v+__a-1)/__a); })
 
 /* Step through method encoding information extracting details.
@@ -332,7 +332,7 @@ next_arg(const char *typePtr, NSArgumentInfo *info, char *outTypes)
 	info->align = __alignof__(char*);
 	break;
 
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
       case _C_BOOL:
 	info->size = sizeof(_Bool);
 	info->align = __alignof__(_Bool);

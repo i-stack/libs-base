@@ -16,12 +16,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSURLHandle class reference</title>
    $Date$ $Revision$
@@ -50,47 +50,6 @@
   NSMutableDictionary	*_attributes;
 }
 @end
-
-/*
- * Keys for NSURLHandle
- */
-NSString * const NSHTTPPropertyStatusCodeKey
-  = @"NSHTTPPropertyStatusCodeKey";
-
-NSString * const NSHTTPPropertyStatusReasonKey
-  = @"NSHTTPPropertyStatusReasonKey";
-
-NSString * const NSHTTPPropertyServerHTTPVersionKey
-  = @"NSHTTPPropertyServerHTTPVersionKey";
-
-NSString * const NSHTTPPropertyRedirectionHeadersKey
-  = @"NSHTTPPropertyRedirectionHeadersKey";
-
-NSString * const NSHTTPPropertyErrorPageDataKey
-  = @"NSHTTPPropertyErrorPageDataKey";
-
-/* These are GNUstep extras */
-NSString * const GSHTTPPropertyMethodKey
-  = @"GSHTTPPropertyMethodKey";
-
-NSString * const GSHTTPPropertyLocalHostKey
-  = @"GSHTTPPropertyLocalHostKey";
-
-NSString * const GSHTTPPropertyProxyHostKey
-  = @"GSHTTPPropertyProxyHostKey";
-
-NSString * const GSHTTPPropertyProxyPortKey
-  = @"GSHTTPPropertyProxyPortKey";
-
-NSString * const GSHTTPPropertyCertificateFileKey
-  = @"GSHTTPPropertyCertificateFileKey";
-
-NSString * const GSHTTPPropertyKeyFileKey
-  = @"GSHTTPPropertyKeyFileKey";
-
-NSString * const GSHTTPPropertyPasswordKey
-  = @"GSHTTPPropertyPasswordKey";
-
 
 /**
  * <p>

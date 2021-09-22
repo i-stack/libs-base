@@ -55,6 +55,8 @@
 #endif
 #if     defined(HAVE_UNICODE_UCNV_H)
 #include <unicode/ucnv.h>
+#elif   defined(HAVE_ICU_H)
+#include <icu.h>
 #endif
 
 
@@ -137,7 +139,7 @@ internal_unicode_enc(void)
 #define UNICODE_UTF32 ""
 #endif
 
-static pthread_mutex_t local_lock = PTHREAD_MUTEX_INITIALIZER;
+static gs_mutex_t local_lock = GS_MUTEX_INIT_STATIC;
 
 typedef	unsigned char	unc;
 static NSStringEncoding	defEnc = GSUndefinedEncoding;
@@ -279,7 +281,7 @@ static void GSSetupEncodingTable(void)
 {
   if (encodingTable == 0)
     {
-      (void)pthread_mutex_lock(&local_lock);
+      GS_MUTEX_LOCK(local_lock);
       if (encodingTable == 0)
 	{
 	  static struct _strenc_	**encTable = 0;
@@ -338,8 +340,8 @@ static void GSSetupEncodingTable(void)
 		   */
 		  l = strlen(entry->iconv);
 		  lossy = malloc(l + 11);
-		  strncpy(lossy, entry->iconv, l);
-		  strncpy(lossy + l, "//TRANSLIT", 11);
+		  memcpy(lossy, entry->iconv, l);
+		  memcpy(lossy + l, "//TRANSLIT", 11);
 		  c = iconv_open(lossy, UNICODE_ENC);
 		  if (c == (iconv_t)-1)
 		    {
@@ -355,7 +357,7 @@ static void GSSetupEncodingTable(void)
 	    }
 	  encodingTable = encTable;
 	}
-      (void)pthread_mutex_unlock(&local_lock);
+      GS_MUTEX_UNLOCK(local_lock);
     }
 }
 
@@ -364,10 +366,10 @@ EntryForEncoding(NSStringEncoding enc)
 {
   struct _strenc_ *entry = 0;
 
-  if (enc > 0)
+  if (enc != 0)
     {
       GSSetupEncodingTable();
-      if (enc <= encTableSize)
+      if (enc > 0 && enc <= encTableSize)
 	{
 	  entry = encodingTable[enc];
 	}
@@ -1936,7 +1938,7 @@ GSFromUnicode(unsigned char **dst, unsigned int *size, const unichar *src,
 		      u2 = src[spos++];
 		      u2 = (((u2 & 0xff00) >> 8) + ((u2 & 0x00ff) << 8));
 
-		      if ((u2 < 0xdc00) && (u2 > 0xdfff))
+		      if ((u2 < 0xdc00) || (u2 > 0xdfff))
 			{
 			  spos--;
 			  if (strict)
@@ -2054,7 +2056,7 @@ GSFromUnicode(unsigned char **dst, unsigned int *size, const unichar *src,
 		      /* get second unichar */
 		      u2 = src[spos++];
 
-		      if ((u2 < 0xdc00) && (u2 > 0xdfff))
+		      if ((u2 < 0xdc00) || (u2 > 0xdfff))
 			{
 			  spos--;
 			  if (strict)
@@ -2242,12 +2244,22 @@ GSFromUnicode(unsigned char **dst, unsigned int *size, const unichar *src,
                         }
                       else
                         {
-                          dpos += sprintf((char*)&ptr[dpos], "\\%03o", u);
+                          char octchars[] = "01234567";
+                          ptr[dpos++] = '\\';
+                          ptr[dpos++] = octchars[(u >> 6) & 7];
+                          ptr[dpos++] = octchars[(u >> 3) & 7];
+                          ptr[dpos++] = octchars[u & 7];
                         }
                     }
                   else
                     {
-                      dpos += sprintf((char*)&ptr[dpos], "\\u%04x", u);
+                      char hexchars[] = "0123456789abcdef";
+                      ptr[dpos++] = '\\';
+                      ptr[dpos++] = 'u';
+                      ptr[dpos++] = hexchars[(u >> 12) & 0xF];
+                      ptr[dpos++] = hexchars[(u >> 8) & 0xF];
+                      ptr[dpos++] = hexchars[(u >> 4) & 0xF];
+                      ptr[dpos++] = hexchars[u & 0xF];
                     }
                 }
             }
@@ -2725,7 +2737,7 @@ GSPrivateAvailableEncodings()
   if (_availableEncodings == 0)
     {
       GSSetupEncodingTable();
-      (void)pthread_mutex_lock(&local_lock);
+      GS_MUTEX_LOCK(local_lock);
       if (_availableEncodings == 0)
 	{
 	  NSStringEncoding	*encodings;
@@ -2751,7 +2763,7 @@ GSPrivateAvailableEncodings()
 	  encodings[pos] = 0;
 	  _availableEncodings = encodings;
 	}
-      (void)pthread_mutex_unlock(&local_lock);
+      GS_MUTEX_UNLOCK(local_lock);
     }
   return _availableEncodings;
 }
@@ -2865,7 +2877,12 @@ GSPrivateCStringEncoding(const char *encoding)
 
   if (enc == GSUndefinedEncoding)
     {
+#ifdef __ANDROID__
+      // Android uses UTF-8 as default encoding (e.g. for file paths)
+      enc = NSUTF8StringEncoding;
+#else
       enc = NSISOLatin1StringEncoding;
+#endif
     }
   else if (GSPrivateIsEncodingSupported(enc) == NO)
     {
@@ -2888,10 +2905,10 @@ GSPrivateDefaultCStringEncoding()
 
       GSSetupEncodingTable();
 
-      (void)pthread_mutex_lock(&local_lock);
+      GS_MUTEX_LOCK(local_lock);
       if (defEnc != GSUndefinedEncoding)
 	{
-	  (void)pthread_mutex_unlock(&local_lock);
+	  GS_MUTEX_UNLOCK(local_lock);
 	  return defEnc;
 	}
 
@@ -2935,7 +2952,7 @@ GSPrivateDefaultCStringEncoding()
 	  defEnc = NSISOLatin1StringEncoding;
 	}
 
-      (void)pthread_mutex_unlock(&local_lock);
+      GS_MUTEX_UNLOCK(local_lock);
     }
   return defEnc;
 }

@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSSet class reference</title>
    $Date$ $Revision$
@@ -197,7 +197,7 @@ static Class NSMutableSet_concrete_class;
   else
     {
       unsigned		count = [self count];
-      NSEnumerator	*e = [self objectEnumerator];
+      NSEnumerator     *e = [self objectEnumerator];
       id		o;
 
       [aCoder encodeValueOfObjCType: @encode(unsigned) at: &count];
@@ -907,7 +907,7 @@ static Class NSMutableSet_concrete_class;
   GS_DISPATCH_CREATE_QUEUE_AND_GROUP_FOR_ENUMERATION(enumQueue, opts)
   FOR_IN (id, obj, enumerator)
   {
-    GS_DISPATCH_SUBMIT_BLOCK(enumQueueGroup,enumQueue, if (shouldStop) {return;}, return;, aBlock, obj, &shouldStop);
+    GS_DISPATCH_SUBMIT_BLOCK(enumQueueGroup,enumQueue, if (shouldStop == NO) {, }, aBlock, obj, &shouldStop);
     if (shouldStop)
       {
 	break;
@@ -997,29 +997,6 @@ static Class NSMutableSet_concrete_class;
 {
     [self subclassResponsibility: _cmd];
     return 0;
-}
-
-- (NSUInteger) sizeInBytesExcluding: (NSHashTable*)exclude
-{
-  NSUInteger    size = [super sizeInBytesExcluding: exclude];
-
-  if (size > 0)
-    {
-      NSUInteger        count = [self count];
-
-      size += 3 * sizeof(void*) * count;
-      if (count > 0)
-        {
-          NSEnumerator          *enumerator = [self objectEnumerator];
-          NSObject              *o;
-
-          while ((o = [enumerator nextObject]) != nil)
-            {
-              size += [o sizeInBytesExcluding: exclude];
-            }
-        }
-    }
-  return size;
 }
 
 @end

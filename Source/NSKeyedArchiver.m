@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    */
 
@@ -55,14 +55,6 @@
 #define	_IN_NSKEYEDARCHIVER_M	1
 #import "Foundation/NSKeyedArchiver.h"
 #undef	_IN_NSKEYEDARCHIVER_M
-
-/* Exceptions */
-
-/**
- * An archiving error has occurred.
- */
-NSString * const NSInvalidArchiveOperationException
-= @"NSInvalidArchiveOperationException";
 
 static NSMapTable	*globalClassMap = 0;
 
@@ -430,34 +422,49 @@ static NSDictionary *makeReference(unsigned ref)
 
 @implementation	NSKeyedArchiver
 
++ (NSData *) archivedDataWithRootObject: (id)anObject
+                  requiringSecureCoding: (BOOL)requiresSecureCoding
+                                  error: (NSError **)error
+{
+  NSData *d = nil;
+
+  if (requiresSecureCoding == NO)
+    {
+      NSMutableData	*m = nil;
+      NSKeyedArchiver	*a = nil;
+
+      error = NULL;
+      NS_DURING
+        {
+          m = [[NSMutableData alloc] initWithCapacity: 10240];
+          a = [[NSKeyedArchiver alloc] initForWritingWithMutableData: m];
+          [a encodeObject: anObject forKey: @"root"];
+          [a finishEncoding];
+          d = [m copy];
+          DESTROY(m);
+          DESTROY(a);
+        }
+      NS_HANDLER
+        {
+          DESTROY(m);
+          DESTROY(a);
+          [localException raise];
+        }
+      NS_ENDHANDLER;
+    }
+
+  return AUTORELEASE(d);
+}
+
 /*
  * When I tried this on MacOS 10.3 it encoded the object with the key 'root',
  * so this implementation does the same.
  */
 + (NSData*) archivedDataWithRootObject: (id)anObject
 {
-  NSMutableData		*m = nil;
-  NSKeyedArchiver	*a = nil;
-  NSData		*d = nil;
-
-  NS_DURING
-    {
-      m = [[NSMutableData alloc] initWithCapacity: 10240];
-      a = [[NSKeyedArchiver alloc] initForWritingWithMutableData: m];
-      [a encodeObject: anObject forKey: @"root"];
-      [a finishEncoding];
-      d = [m copy];
-      DESTROY(m);
-      DESTROY(a);
-    }
-  NS_HANDLER
-    {
-      DESTROY(m);
-      DESTROY(a);
-      [localException raise];
-    }
-  NS_ENDHANDLER
-  return AUTORELEASE(d);
+  return [self archivedDataWithRootObject: anObject
+                    requiringSecureCoding: NO
+                                    error: NULL];
 }
 
 + (BOOL) archiveRootObject: (id)anObject toFile: (NSString*)aPath
@@ -500,6 +507,16 @@ static NSDictionary *makeReference(unsigned ref)
     {
       NSMapInsert(globalClassMap, (void*)aClass, aString);
     }
+}
+
+- (BOOL) requiresSecureCoding
+{
+  return _requiresSecureCoding;
+}
+
+- (void) setRequiresSecureCoding: (BOOL)flag
+{
+  _requiresSecureCoding = flag;
 }
 
 - (BOOL) allowsKeyedCoding
@@ -774,7 +791,7 @@ static NSDictionary *makeReference(unsigned ref)
 	[_enc setObject: o forKey: aKey];
 	return;
 
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
       case _C_BOOL:
 	o = [NSNumber numberWithInt: (NSInteger)*(_Bool*)address];
 	[_enc setObject: o forKey: aKey];

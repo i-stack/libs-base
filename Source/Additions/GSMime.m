@@ -69,6 +69,7 @@
   GSMimeDocument	*current;\
   GSMimeHeader		*version;\
   NSMutableArray	*queue;\
+  NSUInteger		maximum;\
   NSMutableArray	*pending;\
   NSInputStream		*istream;\
   NSOutputStream	*ostream;\
@@ -132,6 +133,7 @@ static NSString         *CteContentType = @"content-type";
 static NSString         *CteQuotedPrintable = @"quoted-printable";
 static NSString         *CteXuuencode = @"x-uuencode";
 
+typedef id (*oaiIMP)(id, SEL, NSUInteger);
 typedef BOOL (*boolIMP)(id, SEL, id);
 
 static char	*hex = "0123456789ABCDEF";
@@ -1525,7 +1527,7 @@ wordData(NSString *word, BOOL *encoded)
     }
 
   NSDebugMLLog(@"GSMime", @"Parse %u bytes - '%*.*s'",
-    (unsigned)l, (unsigned)l, (unsigned)l, [d bytes]);
+    (unsigned)l, (unsigned)l, (unsigned)l, (char*)[d bytes]);
 
   r = [self _endOfHeaders: d];
   if (r.location == NSNotFound)
@@ -2415,7 +2417,7 @@ NSDebugMLLog(@"GSMime", @"Header parsed - %@", info);
     }
 
   NSDebugMLLog(@"GSMime", @"Parse %u bytes - '%*.*s'",
-    (unsigned)l, (unsigned)l, (unsigned)l, [d bytes]);
+    (unsigned)l, (unsigned)l, (unsigned)l, (char*)[d bytes]);
   // NSDebugMLLog(@"GSMime", @"Boundary - '%*.*s'", [boundary length], [boundary length], [boundary bytes]);
 
   if ([context atEnd] == YES)
@@ -2425,7 +2427,7 @@ NSDebugMLLog(@"GSMime", @"Header parsed - %@", info);
       if ([d length] > 0)
 	{
 	  NSLog(@"Additional data (%*.*s) ignored after parse complete",
-	    (unsigned)[d length], (unsigned)[d length], [d bytes]);
+	    (unsigned)[d length], (unsigned)[d length], (char*)[d bytes]);
 	}
       needsMore = NO;	/* Nothing more to do	*/
     }
@@ -5058,11 +5060,11 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
 
   if (charset != nil)
     {
-      enc = (NSStringEncoding)NSMapGet(charsets, charset);
+      enc = (NSStringEncoding)(intptr_t)NSMapGet(charsets, charset);
       if (enc == 0)
 	{
 	  charset = [charset lowercaseString];
-	  enc = (NSStringEncoding)NSMapGet(charsets, charset);
+	  enc = (NSStringEncoding)(intptr_t)NSMapGet(charsets, charset);
 	}
     }
   return enc;
@@ -5723,14 +5725,20 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
   return nil;
 }
 
-/**
- * Convenience method to fetch the content file name from the header.
+/** Convenience method to fetch the content file name from the content-type
+ * or content-disposition header.
  */
 - (NSString*) contentFile
 {
-  GSMimeHeader	*hdr = [self headerNamed: @"content-disposition"];
+  GSMimeHeader	*hdr = [self headerNamed: CteContentType];
+  NSString	*str = [hdr parameterForKey: @"name"];
 
-  return [hdr parameterForKey: @"filename"];
+  if (nil == str)
+    {
+      hdr = [self headerNamed: @"content-disposition"];
+      str = [hdr parameterForKey: @"filename"];
+    }
+  return str;
 }
 
 /**
@@ -6184,12 +6192,12 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
 
   if (count > 0)
     {
-      IMP	imp1;
+      oaiIMP	imp1;
       boolIMP	imp2;
 
       name = [name lowercaseString];
 
-      imp1 = [headers methodForSelector: @selector(objectAtIndex:)];
+      imp1 = (oaiIMP)[headers methodForSelector: @selector(objectAtIndex:)];
       imp2 = (boolIMP)[name methodForSelector: @selector(isEqualToString:)];
       while (count-- > 0)
 	{
@@ -6268,14 +6276,14 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
 
 - (NSString*) description
 {
-  CREATE_AUTORELEASE_POOL(arp);
-  NSMutableString       *m;
   NSString              *s;
 
-  m = [NSMutableString stringWithCapacity: 1000];
+  ENTER_POOL
+  NSMutableString       *m = [NSMutableString stringWithCapacity: 1000];
   [self _descriptionTo: m level: 0];
   s = RETAIN(m);
-  RELEASE(arp);
+  LEAVE_POOL
+
   return AUTORELEASE(s);  
 }
 
@@ -6330,11 +6338,11 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
   if (count > 0)
     {
       NSUInteger	index;
-      IMP		imp1;
+      oaiIMP		imp1;
       boolIMP		imp2;
 
       name = [headerClass makeToken: name preservingCase: NO];
-      imp1 = [headers methodForSelector: @selector(objectAtIndex:)];
+      imp1 = (oaiIMP)[headers methodForSelector: @selector(objectAtIndex:)];
       imp2 = (boolIMP)[name methodForSelector: @selector(isEqualToString:)];
       for (index = 0; index < count; index++)
 	{
@@ -6364,10 +6372,10 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
     {
       NSUInteger	index;
       NSMutableArray	*array;
-      IMP		imp1;
+      oaiIMP		imp1;
       boolIMP		imp2;
 
-      imp1 = [headers methodForSelector: @selector(objectAtIndex:)];
+      imp1 = (oaiIMP)[headers methodForSelector: @selector(objectAtIndex:)];
       imp2 = (boolIMP)[name methodForSelector: @selector(isEqualToString:)];
       array = [NSMutableArray array];
 
@@ -7285,10 +7293,10 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
   if (count > 0)
     {
       NSUInteger	index;
-      IMP	        imp1;
+      oaiIMP	        imp1;
       boolIMP	        imp2;
 
-      imp1 = [headers methodForSelector: @selector(objectAtIndex:)];
+      imp1 = (oaiIMP)[headers methodForSelector: @selector(objectAtIndex:)];
       imp2 = (boolIMP)[name methodForSelector: @selector(isEqualToString:)];
       for (index = 0; index < count; index++)
 	{
@@ -7310,10 +7318,10 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
 
   if (count > 0)
     {
-      IMP	imp1;
+      oaiIMP	imp1;
       boolIMP	imp2;
 
-      imp1 = [headers methodForSelector: @selector(objectAtIndex:)];
+      imp1 = (oaiIMP)[headers methodForSelector: @selector(objectAtIndex:)];
       imp2 = (boolIMP)[name methodForSelector: @selector(isEqualToString:)];
       while (count-- > 0)
 	{
@@ -7390,7 +7398,7 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
 
 - (void) encodePart: (GSMimeDocument*)document to: (NSMutableData*)md
 {
-  CREATE_AUTORELEASE_POOL(arp);
+  ENTER_POOL
   NSData		*d = nil;
   NSEnumerator		*enumerator;
   NSString              *subtype;
@@ -7813,7 +7821,7 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
 	  [md appendData: d];
 	}
     }
-  RELEASE(arp);
+  LEAVE_POOL
 }
 
 - (NSUInteger) foldAt
@@ -7924,7 +7932,7 @@ appendString(NSMutableData *m, NSUInteger offset, NSUInteger fold,
 @end
 
 
-NSString* const GSMimeErrorDomain = @"GSMimeErrorDomain";
+GS_DECLARE NSString* const GSMimeErrorDomain = @"GSMimeErrorDomain";
 
 typedef	enum	{
   TP_IDLE,
@@ -8045,7 +8053,7 @@ GS_PRIVATE_INTERNAL(GSMimeSMTPClient)
 
 @implementation	GSMimeSMTPClient
 
-/* Shuts the connection down, fails any message in progress, anbd discards all
+/* Shuts the connection down, fails any message in progress, and discards all
  * queued messages as 'unsent'
  */
 - (void) abort
@@ -8140,6 +8148,11 @@ GS_PRIVATE_INTERNAL(GSMimeSMTPClient)
   return internal->lastError;
 }
 
+- (NSUInteger) queueSize
+{
+  return [internal->queue count];
+}
+
 - (void) send: (GSMimeDocument*)message
 {
   [self send: message envelopeID: nil];
@@ -8185,6 +8198,14 @@ GS_PRIVATE_INTERNAL(GSMimeSMTPClient)
 - (void) setIdentity: (NSString*)s
 {
   ASSIGNCOPY(internal->identity, s);
+}
+
+- (NSUInteger) setMaximum: (NSUInteger)m
+{
+  NSUInteger	old = internal->maximum;
+
+  internal->maximum = m;
+  return old;
 }
 
 - (void) setOriginator: (NSString*)s
@@ -8937,9 +8958,28 @@ GS_PRIVATE_INTERNAL(GSMimeSMTPClient)
 
   [internal->pending removeAllObjects];
   ASSIGN(internal->lastError, e);
-  if (internal->current != nil)
+  if (nil == internal->current)
     {
-      GSMimeDocument	*d = [internal->current retain];
+      while ([self queueSize] > internal->maximum)
+	{
+	  GSMimeDocument	*d = RETAIN([internal->queue objectAtIndex: 0]);
+
+	  [internal->queue removeObjectAtIndex: 0];
+	  if (nil == internal->delegate)
+	    {
+	      NSDebugMLLog(@"GSMime", @"-smtpClient:mimeUnsent: %@ %@",
+		self, d);
+	    }
+	  else
+	    {
+	      [internal->delegate smtpClient: self mimeUnsent: d];
+	    }
+	  RELEASE(d);
+	}
+    }
+  else
+    {
+      GSMimeDocument	*d = RETAIN(internal->current);
 
       [internal->queue removeObjectAtIndex: 0];
       internal->current = nil;
@@ -8951,7 +8991,7 @@ GS_PRIVATE_INTERNAL(GSMimeSMTPClient)
 	{
           [internal->delegate smtpClient: self mimeFailed: d];
 	}
-      [d release];
+      RELEASE(d);
     }
   if ([internal->queue count] > 0)
     {

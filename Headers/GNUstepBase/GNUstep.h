@@ -80,6 +80,9 @@
 #ifndef	ASSIGNCOPY
 #define	ASSIGNCOPY(object,value)	object = [(value) copy]
 #endif
+#ifndef	ASSIGNMUTABLECOPY
+#define	ASSIGNMUTABLECOPY(object,value)	object = [(value) mutableCopy]
+#endif
 #ifndef	DESTROY
 #define	DESTROY(object) 	        object = nil
 #endif
@@ -87,11 +90,11 @@
 #define	IF_NO_GC(X)	
 
 #ifndef ENTER_POOL
-#define ENTER_POOL                      @autoreleasepool{do{
+#define ENTER_POOL                      @autoreleasepool{
 #endif
 
 #ifndef LEAVE_POOL
-#define LEAVE_POOL                      }while(0);}
+#define LEAVE_POOL                      }
 #endif
 
 #ifndef DEALLOC
@@ -103,61 +106,58 @@
 #ifndef	RETAIN
 /**
  *	Basic retain operation ... calls [NSObject-retain]<br />
- *	Deprecated ... pointless on modern processors.
- *	Simply call the -retain method.
+ *	Does nothing when ARC is in use.
  */
-#define	RETAIN(object)		[(object) retain]
+#define	RETAIN(object)		[(id)(object) retain]
 #endif
 
 #ifndef	RELEASE
 /**
  *	Basic release operation ... calls [NSObject-release]<br />
- *	Deprecated ... pointless on modern processors.
- *	Simply call the -release method.
+ *	Does nothing when ARC is in use.
  */
-#define	RELEASE(object)		[(object) release]
+#define	RELEASE(object)		[(id)(object) release]
 #endif
 
 #ifndef	AUTORELEASE
 /**
  *	Basic autorelease operation ... calls [NSObject-autorelease]<br />
- *	Deprecated ... pointless on modern processors.
- *	Simply call the -autorelease method.
+ *	Does nothing when ARC is in use.
  */
-#define	AUTORELEASE(object)	[(object) autorelease]
+#define	AUTORELEASE(object)	[(id)(object) autorelease]
 #endif
 
 #ifndef	TEST_RETAIN
 /**
  *	Tested retain - only invoke the
  *	objective-c method if the receiver is not nil.<br />
- *	Deprecated ... pointless on modern processors.
- *	Simply call the -retain method.
+ *	Does nothing when ARC is in use.
  */
 #define	TEST_RETAIN(object)	({\
-id __object = (object); (__object != nil) ? [__object retain] : nil; })
+void *__object = (void*)(object);\
+(__object != 0) ? [(id)__object retain] : nil; })
 #endif
 
 #ifndef	TEST_RELEASE
 /**
  *	Tested release - only invoke the
  *	objective-c method if the receiver is not nil.<br />
- *	Deprecated ... pointless on modern processors.
- *	Simply call the -release method.
+ *	Does nothing when ARC is in use.
  */
 #define	TEST_RELEASE(object)	({\
-id __object = (object); if (__object != nil) [__object release]; })
+void *__object = (void*)(object);\
+if (__object != 0) [(id)__object release]; })
 #endif
 
 #ifndef	TEST_AUTORELEASE
 /**
  *	Tested autorelease - only invoke the
  *	objective-c method if the receiver is not nil.<br />
- *	Deprecated ... pointless on modern processors.
- *	Simply call the -autorelease method.
+ *	Does nothing when ARC is in use.
  */
 #define	TEST_AUTORELEASE(object)	({\
-id __object = (object); (__object != nil) ? [__object autorelease] : nil; })
+void *__object = (void*)(object);\
+(__object != 0) ? [(id)__object autorelease] : nil; })
 #endif
 
 #ifndef	ASSIGN
@@ -167,9 +167,9 @@ id __object = (object); (__object != nil) ? [__object autorelease] : nil; })
  *	Use this to avoid retain/release errors.
  */
 #define	ASSIGN(object,value)	({\
-  id __object = object; \
-  object = [(value) retain]; \
-  [__object release]; \
+  void *__object = (void*)object; \
+  object = (__typeof__(object))[(value) retain]; \
+  [(id)__object release]; \
 })
 #endif
 
@@ -180,9 +180,22 @@ id __object = (object); (__object != nil) ? [__object autorelease] : nil; })
  *	Use this to avoid retain/release errors.
  */
 #define	ASSIGNCOPY(object,value)	({\
-  id __object = object; \
-  object = [(value) copy];\
-  [__object release]; \
+  void *__object = (void*)object; \
+  object = (__typeof__(object))[(value) copy];\
+  [(id)__object release]; \
+})
+#endif
+
+#ifndef	ASSIGNMUTABLECOPY
+/**
+ *	ASSIGNMUTABLECOPY(object,value) assigns a mutable copy of the value
+ *	to the object with release of the original.<br />
+ *	Use this to avoid retain/release errors.
+ */
+#define	ASSIGNMUTABLECOPY(object,value)	({\
+  void *__object = (void*)object; \
+  object = (__typeof__(object))[(value) mutableCopy];\
+  [(id)__object release]; \
 })
 #endif
 
@@ -195,9 +208,9 @@ id __object = (object); (__object != nil) ? [__object autorelease] : nil; })
  *	to reference the object being released through the variable.
  */
 #define	DESTROY(object) 	({ \
-  id __o = object; \
+  void *__o = (void*)object; \
   object = nil; \
-  [__o release]; \
+  [(id)__o release]; \
 })
 #endif
 
@@ -206,22 +219,23 @@ id __object = (object); (__object != nil) ? [__object autorelease] : nil; })
 #ifndef ENTER_POOL
 /**
  *	ENTER_POOL creates an autorelease pool and places subsequent code
- *	in a do/while loop (executed only once) which can be broken out of
- *	to reach the point when the pool is drained.<br />
+ *	in a block.<br />
  *	The block must be terminated with a corresponding LEAVE_POOL.<br />
- *	You should not return from such a block of code (to do so could
- *	leak an autorelease pool and give objects a longer lifetime than
- *	they ought to have.  If you wish to leave the block of code early,
- *	you may do so using a 'break' statement.
+ *	You should not break, continue, or return from such a block of code
+ *	(to do so could leak an autorelease pool and give objects a longer
+ *	lifetime than they ought to have.  If you wish to leave the block of
+ *	code early, you should ensure that doing so causes the autorelease
+ *	pool outside the block to be released promptly (since that will
+ *	implicitly release the pool created at the start of the block too).
  */
-#define ENTER_POOL      {NSAutoreleasePool *_lARP=[NSAutoreleasePool new];do{
+#define ENTER_POOL      {NSAutoreleasePool *_lARP=[NSAutoreleasePool new];
 #endif
 
 #ifndef LEAVE_POOL
 /**
  *	LEAVE_POOL terminates a block of code started with ENTER_POOL.
  */
-#define LEAVE_POOL      }while(0);[_lARP drain];}
+#define LEAVE_POOL      [_lARP drain];}
 #endif
 
 #ifndef DEALLOC
@@ -234,14 +248,16 @@ id __object = (object); (__object != nil) ? [__object autorelease] : nil; })
 #endif
 
 #ifndef	CREATE_AUTORELEASE_POOL
-/** DEPRECATED ... use ENTER_POOL and LEAVE_POOL
+/** DEPRECATED ... use ENTER_POOL and LEAVE_POOL and make sure your
+ * code does not break/continue/return out of the section of code.
  */
 #define	CREATE_AUTORELEASE_POOL(X)	\
   NSAutoreleasePool *X = [NSAutoreleasePool new]
 #endif
 
 #ifndef RECREATE_AUTORELEASE_POOL
-/** DEPRECATED ... use ENTER_POOL and LEAVE_POOL
+/** DEPRECATED ... use ENTER_POOL and LEAVE_POOL and make sure your
+ * code does not break/continue/return out of the section of code.
  */
 #define RECREATE_AUTORELEASE_POOL(X)  \
   DESTROY(X);\

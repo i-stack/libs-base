@@ -17,12 +17,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
   
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
   */
 
 #ifndef __NSBundle_h_GNUSTEP_BASE_INCLUDE
@@ -35,6 +35,10 @@ extern "C" {
 
 #import	<Foundation/NSObject.h>
 #import	<Foundation/NSString.h>
+
+#ifdef __ANDROID__
+#include <android/asset_manager_jni.h>
+#endif
 
 @class NSString;
 @class NSArray;
@@ -105,6 +109,7 @@ GS_EXPORT NSString* const NSLoadedClasses;
    bundle.
    </p>
 */
+GS_EXPORT_CLASS
 @interface NSBundle : NSObject
 {
 #if	GS_EXPOSE(NSBundle)
@@ -540,6 +545,47 @@ GS_EXPORT NSString* const NSLoadedClasses;
 			      ofType: (NSString*)extension
 			 inDirectory: (NSString*)bundlePath;
 
+/** Cleans up the path cache for the bundle. */
+- (void) cleanPathCache;
+
+#ifdef __ANDROID__
+
+/**
+ * Sets the Java Android asset manager.
+ * The developer can call this method to enable asset loading via NSBundle.
+ */
++ (void) setJavaAssetManager: (jobject)jassetManager withJNIEnv: (JNIEnv *)env;
+
+/**
+ * Returns the native Android asset manager.
+ */
++ (AAssetManager *) assetManager;
+
+/**
+ * Returns the Android asset for the given path if path is in main bundle
+ * resources and asset exists.
+ * Uses `AASSET_MODE_UNKNOWN` to open the asset if it exists.
+ * The returned object must be released using AAsset_close().
+ */
++ (AAsset *) assetForPath: (NSString *)path;
+
+/**
+ * Returns the Android asset for the given path if path is in main bundle
+ * resources and asset exists.
+ * Uses the given mode to open the AAsset if it exists.
+ * The returned object must be released using AAsset_close().
+ */
++ (AAsset *) assetForPath: (NSString *)path withMode: (int)mode;
+
+/**
+ * Returns the Android asset dir for the given path if path is in main bundle
+ * resources and the asset directory exists.
+ * The returned object must be released using AAssetDir_close().
+ */
++ (AAssetDir *) assetDirForPath: (NSString *)path;
+
+#endif /* __ANDROID__ */
+
 @end
 
 #endif /* GNUSTEP */
@@ -603,7 +649,7 @@ GS_EXPORT NSString* const NSLoadedClasses;
  * </p>
  */
 #define NSLocalizedString(key, comment) \
-  [[NSBundle mainBundle] localizedStringForKey:(key) value:@"" table:nil]
+  [[NSBundle mainBundle] localizedStringForKey: (key) value: @"" table: nil]
 
 /**
  * This function (macro) does the same as
@@ -621,7 +667,7 @@ GS_EXPORT NSString* const NSLoadedClasses;
  * different table.
  */
 #define NSLocalizedStringFromTable(key, tbl, comment) \
-  [[NSBundle mainBundle] localizedStringForKey:(key) value:@"" table:(tbl)]
+  [[NSBundle mainBundle] localizedStringForKey: (key) value: @"" table: (tbl)]
 
 /**
  * This function is the full-blown localization function (it
@@ -637,7 +683,7 @@ GS_EXPORT NSString* const NSLoadedClasses;
  * use when translating the string.
  */
 #define NSLocalizedStringFromTableInBundle(key, tbl, bundle, comment) \
-  [bundle localizedStringForKey:(key) value:@"" table:(tbl)]
+  [bundle localizedStringForKey: (key) value: @"" table: (tbl)]
 
 
 #if	defined(__cplusplus)

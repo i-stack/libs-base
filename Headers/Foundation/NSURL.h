@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */
 
 #ifndef __NSURL_h_GNUSTEP_BASE_INCLUDE
@@ -27,6 +27,7 @@
 #import	<GNUstepBase/GSVersionMacros.h>
 
 #import	<Foundation/NSURLHandle.h>
+#import <Foundation/NSRange.h>
 
 #if	defined(__cplusplus)
 extern "C" {
@@ -36,6 +37,9 @@ extern "C" {
 
 @class NSError;
 @class NSNumber;
+@class NSString;
+@class NSDictionary;
+@class NSArray;
 
 /**
  *  URL scheme constant for use with [NSURL-initWithScheme:host:path:].
@@ -64,6 +68,7 @@ enum
  * Handling of the underlying resources is carried out by NSURLHandle
  * objects, but NSURL provides a simplified API wrapping these objects.
  */
+GS_EXPORT_CLASS
 @interface NSURL: NSObject <NSCoding, NSCopying, NSURLHandleClient>
 {
 #if	GS_EXPOSE(NSURL)
@@ -81,29 +86,41 @@ enum
  * Calls -initFileURLWithPath: which escapes characters in the
  * path where necessary.
  */
-+ (id) fileURLWithPath: (NSString*)aPath;
++ (instancetype) fileURLWithPath: (NSString*)aPath;
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_6,GS_API_LATEST) 
 /** Creates a file URL using a path built from components.
  */
-+ (NSURL*) fileURLWithPathComponents: (NSArray*)components;
++ (instancetype) fileURLWithPathComponents: (NSArray*)components;
 #endif
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_5, GS_API_LATEST)
-+ (id) fileURLWithPath: (NSString*)aPath isDirectory: (BOOL)isDir;
++ (instancetype) fileURLWithPath: (NSString*)aPath isDirectory: (BOOL)isDir;
 #endif
+
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_11, GS_API_LATEST)
++ (instancetype) fileURLWithPath: (NSString *)aPath
+		     isDirectory: (BOOL)isDir
+		   relativeToURL: (NSURL *)baseURL;
+
+/** Create and return a file URL with the supplied path, relative to a base URL.
+ */
++ (instancetype) fileURLWithPath: (NSString *)aPath
+		   relativeToURL: (NSURL *)baseURL;
+#endif
+
 /**
  * Create and return a URL with the supplied string, which should
  * be a string (containing percent escape codes where necessary)
  * conforming to the description (in RFC2396) of an absolute URL.<br />
  * Calls -initWithString:
  */
-+ (id) URLWithString: (NSString*)aUrlString;
++ (instancetype) URLWithString: (NSString*)aUrlString;
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_10, GS_API_LATEST)
-+ (id) URLByResolvingAliasFileAtURL: (NSURL*)url 
-                            options: (NSURLBookmarkResolutionOptions)options 
-                              error: (NSError**)error;
++ (instancetype) URLByResolvingAliasFileAtURL: (NSURL*)url
+                                      options: (NSURLBookmarkResolutionOptions)options
+                                        error: (NSError**)error;
 #endif
 
 /**
@@ -112,8 +129,8 @@ enum
  * conforming to the description (in RFC2396) of a relative URL.<br />
  * Calls -initWithString:relativeToURL:
  */
-+ (id) URLWithString: (NSString*)aUrlString
-       relativeToURL: (NSURL*)aBaseUrl;
++ (instancetype) URLWithString: (NSString*)aUrlString
+                 relativeToURL: (NSURL*)aBaseUrl;
 
 /**
  * Initialise as a file URL with the specified path (which must
@@ -124,7 +141,7 @@ enum
  * specifies a directory.<br />
  * Calls -initWithScheme:host:path:
  */
-- (id) initFileURLWithPath: (NSString*)aPath;
+- (instancetype) initFileURLWithPath: (NSString*)aPath;
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_5,GS_API_LATEST) 
 /**
@@ -136,7 +153,35 @@ enum
  * specifies a directory.<br />
  * Calls -initWithScheme:host:path:
  */
-- (id) initFileURLWithPath: (NSString*)aPath isDirectory: (BOOL)isDir;
+- (instancetype) initFileURLWithPath: (NSString*)aPath
+                         isDirectory: (BOOL)isDir;
+#endif
+
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_11, GS_API_LATEST)
+/**
+ * Initialise as a file URL with the specified path (which must
+ * be a valid path on the local filesystem) relative to the base URL.<br />
+ * Raises NSInvalidArgumentException if aPath is nil.<br />
+ * Converts relative paths to absolute ones.<br />
+ * Appends a trailing slash to the path when necessary if it
+ * specifies a directory.<br />
+ * Calls -initWithScheme:host:path:
+ */
+- (instancetype) initFileURLWithPath: (NSString *)aPath
+		       relativeToURL: (NSURL *)baseURL;
+
+/**
+ * Initialise as a file URL with the specified path (which must
+ * be a valid path on the local filesystem) relative to the base URL.<br />
+ * Raises NSInvalidArgumentException if aPath is nil.<br />
+ * Converts relative paths to absolute ones.<br />
+ * Appends a trailing slash to the path when necessary if it
+ * specifies a directory.<br />
+ * Calls -initWithScheme:host:path:
+ */
+- (instancetype) initFileURLWithPath: (NSString *)aPath
+			 isDirectory: (BOOL)isDir
+		       relativeToURL: (NSURL *)baseURL;
 #endif
 
 /**
@@ -150,15 +195,15 @@ enum
  * Permits the 'aHost' part to contain 'username:password@host:port' or
  * 'host:port' in addition to a simple host name or address.
  */
-- (id) initWithScheme: (NSString*)aScheme
-		 host: (NSString*)aHost
-		 path: (NSString*)aPath;
+- (instancetype) initWithScheme: (NSString*)aScheme
+                           host: (NSString*)aHost
+                           path: (NSString*)aPath;
 
 /**
  * Initialise as an absolute URL.<br />
  * Calls -initWithString:relativeToURL:
  */
-- (id) initWithString: (NSString*)aUrlString;
+- (instancetype) initWithString: (NSString*)aUrlString;
 
 /** <init />
  * Initialised using aUrlString and aBaseUrl.  The value of aBaseUrl
@@ -168,8 +213,8 @@ enum
  * Parses an empty string as an empty path.<br />
  * If the string cannot be parsed the method returns nil.
  */
-- (id) initWithString: (NSString*)aUrlString
-	relativeToURL: (NSURL*)aBaseUrl;
+- (instancetype) initWithString: (NSString*)aUrlString
+                  relativeToURL: (NSURL*)aBaseUrl;
 
 #if GS_HAS_DECLARED_PROPERTIES
 @property (readonly, getter=isFileURL) BOOL fileURL;
@@ -406,7 +451,23 @@ enum
 
 #endif
 
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_7, GS_API_LATEST) 
+/** Returns a URL formed by adding a path component to the path of the
+ * receiver, along with a trailing slash if the component is designated a
+ * directory.<br />
+ * See [NSString-stringByAppendingPathComponent:].
+ */
+- (NSURL *) URLByAppendingPathComponent: (NSString *)pathComponent
+                            isDirectory: (BOOL)isDirectory;
+#endif
+
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_6, GS_API_LATEST)
+- (BOOL) isFileReferenceURL;
+
+- (NSURL *) fileReferenceURL;
+
+- (NSURL *) filePathURL;
+
 - (BOOL) getResourceValue: (id*)value 
                    forKey: (NSString *)key 
                     error: (NSError**)error;
@@ -583,13 +644,143 @@ GS_EXPORT NSString* const NSURLUbiquitousItemDownloadingStatusCurrent;
 
 #endif	/* GS_API_MACOSX */
 
-#if	defined(__cplusplus)
-}
-#endif
-
 #if     !NO_GNUSTEP && !defined(GNUSTEP_BASE_INTERNAL)
 #import <GNUstepBase/NSURL+GNUstepBase.h>
 #endif
 
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_10, GS_API_LATEST)
+
+GS_EXPORT_CLASS
+@interface NSURLQueryItem : NSObject <NSCopying, NSCoding>
+{
+#if	GS_EXPOSE(NSURLQueryItem)
+#endif
+#if     GS_NONFRAGILE
+#  if	defined(GS_NSURLQueryItem_IVARS)
+@public
+GS_NSURLQueryItem_IVARS;
+#  endif
+#else
+  /* Pointer to private additional data used to avoid breaking ABI
+   * when we don't have the non-fragile ABI available.
+   * Use this mechanism rather than changing the instance variable
+   * layout (see Source/GSInternal.h for details).
+   */
+  @private id _internal GS_UNUSED_IVAR;
+#endif
+}
+
+// Creating query items.
++ (instancetype)queryItemWithName: (NSString *)name 
+                            value: (NSString *)value;
+- (instancetype)initWithName: (NSString *)name 
+                       value: (NSString *)value;
+
+// Reading a name and value from a query
+- (NSString *) name;  
+- (NSString *) value;
+@end
+
+#endif // OS_API_VERSION
+
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_9, GS_API_LATEST)
+
+GS_EXPORT_CLASS
+@interface NSURLComponents : NSObject <NSCopying>
+{
+#if	GS_EXPOSE(NSURLComponents)
+#endif
+#if     GS_NONFRAGILE
+#  if	defined(GS_NSURLComponents_IVARS)
+@public
+GS_NSURLComponents_IVARS;
+#  endif
+#else
+  /* Pointer to private additional data used to avoid breaking ABI
+   * when we don't have the non-fragile ABI available.
+   * Use this mechanism rather than changing the instance variable
+   * layout (see Source/GSInternal.h for details).
+   */
+  @private id _internal GS_UNUSED_IVAR;
+#endif
+}
+  // Creating URL components...
++ (instancetype) componentsWithString: (NSString *)URLString;
++ (instancetype) componentsWithURL: (NSURL *)url 
+           resolvingAgainstBaseURL: (BOOL)resolve;
+- (instancetype) init;
+- (instancetype) initWithString: (NSString *)URLString;
+
+- (instancetype) initWithURL: (NSURL *)url 
+     resolvingAgainstBaseURL: (BOOL)resolve;
+
+// Getting the URL
+- (NSString *) string;
+- (void) setString: (NSString *)urlString;
+- (NSURL *) URL;
+- (void) setURL: (NSURL *)url;
+- (NSURL *)URLRelativeToURL: (NSURL *)baseURL;
+
+// Accessing Components in Native Format
+- (NSString *) fragment;
+- (void) setFragment: (NSString *)fragment;
+- (NSString *) host;
+- (void) setHost: (NSString *)host;
+- (NSString *) password;
+- (void) setPassword: (NSString *)password;
+- (NSString *) path;
+- (void) setPath: (NSString *)path;
+- (NSNumber *) port;
+- (void) setPort: (NSNumber *)port;
+- (NSString *) query;
+- (void) setQuery: (NSString *)query;
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_10, GS_API_LATEST)
+- (NSArray *) queryItems;
+- (void) setQueryItems: (NSArray *)queryItems;
+#endif
+- (NSString *) scheme;
+- (void) setScheme: (NSString *)scheme;
+- (NSString *) user;
+- (void) setUser: (NSString *)user;
+
+// Accessing Components in PercentEncoded Format
+- (NSString *) percentEncodedFragment; 
+- (void) setPercentEncodedFragment: (NSString *)fragment;
+- (NSString *) percentEncodedHost;
+- (void) setPercentEncodedHost: (NSString *)host;
+- (NSString *) percentEncodedPassword;
+- (void) setPercentEncodedPassword: (NSString *)password;
+- (NSString *) percentEncodedPath;
+- (void) setPercentEncodedPath: (NSString *)path;
+- (NSString *) percentEncodedQuery;
+- (void) setPercentEncodedQuery: (NSString *)query;
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_10, GS_API_LATEST)
+- (NSArray *) percentEncodedQueryItems;
+- (void) setPercentEncodedQueryItems: (NSArray *)queryItems;
+#endif
+- (NSString *) percentEncodedUser;
+- (void) setPercentEncodedUser: (NSString *)user;
+
+// Locating components of the URL string representation
+- (NSRange) rangeOfFragment;
+- (NSRange) rangeOfHost;
+- (NSRange) rangeOfPassword;
+- (NSRange) rangeOfPath;
+- (NSRange) rangeOfPort;
+- (NSRange) rangeOfQuery;
+- (NSRange) rangeOfScheme;
+- (NSRange) rangeOfUser;
+  
+@end
+
+#if defined(__cplusplus)
+}
+#endif
+
+#endif	/* GS_API_MACOSX */
+
 #endif	/* __NSURL_h_GNUSTEP_BASE_INCLUDE */
+
+
+
 

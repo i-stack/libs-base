@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */
 
 #ifndef __NSData_h_GNUSTEP_BASE_INCLUDE
@@ -38,6 +38,14 @@ extern "C" {
 #if OS_API_VERSION(GS_API_MACOSX, GS_API_LATEST)
 @class	NSError;
 @class	NSURL;
+#endif
+
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_6,GS_API_LATEST)
+enum {
+  NSDataSearchBackwards = (1UL << 0),
+  NSDataSearchAnchored = (1UL << 1),
+};
+typedef NSUInteger NSDataSearchOptions;
 #endif
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_9,GS_API_LATEST)
@@ -73,6 +81,7 @@ enum {
 DEFINE_BLOCK_TYPE(GSDataDeallocatorBlock, void, void*, NSUInteger);
 #endif
 
+GS_EXPORT_CLASS
 @interface NSData : NSObject <NSCoding, NSCopying, NSMutableCopying>
 
 // Allocating and Initializing a Data Object
@@ -135,6 +144,12 @@ DEFINE_BLOCK_TYPE(GSDataDeallocatorBlock, void, void*, NSUInteger);
 - (void) getBytes: (void*)buffer
 	    range: (NSRange)aRange;
 - (NSData*) subdataWithRange: (NSRange)aRange;
+
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_6,GS_API_LATEST)
+- (NSRange) rangeOfData: (NSData *)dataToFind
+                options: (NSDataSearchOptions)mask
+                  range: (NSRange)searchRange;
+#endif
 
 // base64
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_9,GS_API_LATEST)
@@ -298,6 +313,7 @@ DEFINE_BLOCK_TYPE(GSDataDeallocatorBlock, void, void*, NSUInteger);
 @end
 #endif
 
+GS_EXPORT_CLASS
 @interface NSMutableData :  NSData
 
 + (id) dataWithCapacity: (NSUInteger)numBytes;

@@ -18,12 +18,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSNotificationCenter class reference</title>
    $Date$ $Revision$
@@ -1179,7 +1179,22 @@ static NSNotificationCenter *default_center = nil;
             }
           NS_HANDLER
             {
-              NSLog(@"Problem posting notification: %@", localException);
+	      BOOL	logged;
+
+	      /* Try to report the notification along with the exception,
+	       * but if there's a problem with the notification itself,
+	       * we just log the exception.
+	       */
+	      NS_DURING
+		NSLog(@"Problem posting %@: %@", notification, localException);
+		logged = YES;
+	      NS_HANDLER
+		logged = NO;
+	      NS_ENDHANDLER
+  	      if (NO == logged)
+		{ 
+		  NSLog(@"Problem posting notification: %@", localException);
+		}  
             }
           NS_ENDHANDLER
 	}

@@ -31,13 +31,17 @@
 /* Test for ASCII whitespace which is safe for unicode characters */
 #define	space(C)	((C) > 127 ? NO : isspace(C))
 
-/* This private cass is used for the -immutableProxy method in the category
+/* This private class is used for the -immutableProxy method in the category
  * on NSMutableString.
  * It is needed for [NSAttributedString-string] and [NSTextStorage-string]
+ *
+ * NB. The _parent instance variable is private but must *not* be changed
+ * because it is actually used by GSMutableString code to permit some
+ * optimisation (see GSString.m).
  */
 @interface	GSImmutableString : NSString
 {
-  NSString	*_parent;
+  NSString	*_parent;	// Do not change this ivar declaration
 }
 - (id) initWithString: (NSString*)parent;
 @end
@@ -166,6 +170,11 @@
 - (BOOL) isEqualToString: (NSString*)anObject
 {
   return [_parent isEqualToString: anObject];
+}
+
+- (BOOL) isProxy
+{
+  return YES;
 }
 
 - (NSUInteger) length

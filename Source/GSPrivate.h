@@ -13,7 +13,7 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
@@ -359,11 +359,6 @@ GSPrivateArgZero() GS_ATTRIB_PRIVATE;
  */
 NSStringEncoding *
 GSPrivateAvailableEncodings() GS_ATTRIB_PRIVATE;
-
-/* Initialise constant strings
- */
-void
-GSPrivateBuildStrings(void) GS_ATTRIB_PRIVATE;
 
 /* Used to check for termination of background tasks.
  */

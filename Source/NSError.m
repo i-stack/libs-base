@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */
 
 #import "common.h"
@@ -28,32 +28,9 @@
 #import	"Foundation/NSError.h"
 #import	"Foundation/NSCoder.h"
 
-NSString* const NSFilePathErrorKey = @"NSFilePath";
-NSString* const NSLocalizedDescriptionKey = @"NSLocalizedDescriptionKey";
-NSString* const NSStringEncodingErrorKey = @"NSStringEncodingErrorKey";
-NSString* const NSURLErrorKey = @"NSURLErrorKey";
-NSString* const NSUnderlyingErrorKey = @"NSUnderlyingErrorKey";
-
-NSString* const NSLocalizedFailureReasonErrorKey
-  = @"NSLocalizedFailureReasonErrorKey";
-NSString* const NSLocalizedRecoveryOptionsErrorKey
-  = @"NSLocalizedRecoveryOptionsErrorKey";
-NSString* const NSLocalizedRecoverySuggestionErrorKey
-  = @"NSLocalizedRecoverySuggestionErrorKey";
-NSString* const NSRecoveryAttempterErrorKey
-  = @"NSRecoveryAttempterErrorKey";
-
-NSString* const NSURLErrorFailingURLErrorKey = @"NSErrorFailingURLKey";
-NSString* const NSURLErrorFailingURLStringErrorKey = @"NSErrorFailingURLStringKey";
-
-NSString* const NSMACHErrorDomain = @"NSMACHErrorDomain";
-NSString* const NSOSStatusErrorDomain = @"NSOSStatusErrorDomain";
-NSString* const NSPOSIXErrorDomain = @"NSPOSIXErrorDomain";
-NSString* const NSCocoaErrorDomain = @"NSCocoaErrorDomain";
-
 @implementation	NSError
 
-+ (id) errorWithDomain: (NSString*)aDomain
++ (id) errorWithDomain: (NSErrorDomain)aDomain
 		  code: (NSInteger)aCode
 	      userInfo: (NSDictionary*)aDictionary
 {
@@ -88,7 +65,7 @@ NSString* const NSCocoaErrorDomain = @"NSCocoaErrorDomain";
   return [self localizedDescription];
 }
 
-- (NSString*) domain
+- (NSErrorDomain) domain
 {
   return _domain;
 }
@@ -136,7 +113,7 @@ NSString* const NSCocoaErrorDomain = @"NSCocoaErrorDomain";
   return self;
 }
 
-- (id) initWithDomain: (NSString*)aDomain
+- (id) initWithDomain: (NSErrorDomain)aDomain
 		 code: (NSInteger)aCode
 	     userInfo: (NSDictionary*)aDictionary
 {

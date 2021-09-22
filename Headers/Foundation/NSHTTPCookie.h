@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __NSHTTPCookie_h_GNUSTEP_BASE_INCLUDE
@@ -40,19 +40,19 @@ extern "C" {
 @class NSString;
 @class NSURL;
 
-extern NSString * const NSHTTPCookieComment; /** Obtain text of the comment */
-extern NSString * const NSHTTPCookieCommentURL; /** Obtain the comment URL */
-extern NSString * const NSHTTPCookieDiscard; /** Obtain the sessions discard setting */
-extern NSString * const NSHTTPCookieDomain; /** Obtain cookie domain */
-extern NSString * const NSHTTPCookieExpires; /** Obtain cookie expiry date */
-extern NSString * const NSHTTPCookieMaximumAge; /** Obtain maximum age (expiry) */
-extern NSString * const NSHTTPCookieName; /** Obtain name of cookie */
-extern NSString * const NSHTTPCookieOriginURL; /** Obtain cookie origin URL */
-extern NSString * const NSHTTPCookiePath; /** Obtain cookie path */
-extern NSString * const NSHTTPCookiePort; /** Obtain cookie ports */
-extern NSString * const NSHTTPCookieSecure; /** Obtain cookie security */
-extern NSString * const NSHTTPCookieValue; /** Obtain value of cookie */
-extern NSString * const NSHTTPCookieVersion; /** Obtain cookie version */
+GS_EXPORT NSString * const NSHTTPCookieComment; /** Obtain text of the comment */
+GS_EXPORT NSString * const NSHTTPCookieCommentURL; /** Obtain the comment URL */
+GS_EXPORT NSString * const NSHTTPCookieDiscard; /** Obtain the sessions discard setting */
+GS_EXPORT NSString * const NSHTTPCookieDomain; /** Obtain cookie domain */
+GS_EXPORT NSString * const NSHTTPCookieExpires; /** Obtain cookie expiry date */
+GS_EXPORT NSString * const NSHTTPCookieMaximumAge; /** Obtain maximum age (expiry) */
+GS_EXPORT NSString * const NSHTTPCookieName; /** Obtain name of cookie */
+GS_EXPORT NSString * const NSHTTPCookieOriginURL; /** Obtain cookie origin URL */
+GS_EXPORT NSString * const NSHTTPCookiePath; /** Obtain cookie path */
+GS_EXPORT NSString * const NSHTTPCookiePort; /** Obtain cookie ports */
+GS_EXPORT NSString * const NSHTTPCookieSecure; /** Obtain cookie security */
+GS_EXPORT NSString * const NSHTTPCookieValue; /** Obtain value of cookie */
+GS_EXPORT NSString * const NSHTTPCookieVersion; /** Obtain cookie version */
 
 
 /**
@@ -63,6 +63,7 @@ extern NSString * const NSHTTPCookieVersion; /** Obtain cookie version */
  *  as originally produced by netscape, as well as more recent standardised
  *  and versioned cookies.
  */
+GS_EXPORT_CLASS
 @interface NSHTTPCookie :  NSObject
 {
 #if	GS_EXPOSE(NSHTTPCookie)

@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
     AutogsdocSource: NSFileHandle.m
     AutogsdocSource: NSPipe.m
@@ -37,19 +37,28 @@ extern "C" {
 #endif
 
 @class NSData;
+@class NSError;
 @class NSString;
+@class NSURL;
 
+GS_EXPORT_CLASS
 @interface NSFileHandle : NSObject
 
 // Allocating and Initializing a FileHandle Object
 
-+ (id) fileHandleForReadingAtPath: (NSString*)path;
-+ (id) fileHandleForWritingAtPath: (NSString*)path;
-+ (id) fileHandleForUpdatingAtPath: (NSString*)path;
-+ (id) fileHandleWithStandardError;
-+ (id) fileHandleWithStandardInput;
-+ (id) fileHandleWithStandardOutput;
-+ (id) fileHandleWithNullDevice;
++ (instancetype) fileHandleForReadingAtPath: (NSString*)path;
++ (instancetype) fileHandleForWritingAtPath: (NSString*)path;
++ (instancetype) fileHandleForUpdatingAtPath: (NSString*)path;
++ (instancetype) fileHandleWithStandardError;
++ (instancetype) fileHandleWithStandardInput;
++ (instancetype) fileHandleWithStandardOutput;
++ (instancetype) fileHandleWithNullDevice;
+
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_6, GS_API_LATEST)
++ (instancetype) fileHandleForReadingFromURL: (NSURL*)url error:(NSError**)error;
++ (instancetype) fileHandleForWritingToURL: (NSURL*)url error:(NSError**)error;
++ (instancetype) fileHandleForUpdatingURL: (NSURL*)url error:(NSError**)error;
+#endif
 
 - (id) initWithFileDescriptor: (int)desc;
 - (id) initWithFileDescriptor: (int)desc closeOnDealloc: (BOOL)flag;
@@ -155,6 +164,7 @@ GS_EXPORT NSString * const NSFileHandleNotificationMonitorModes;
  */
 GS_EXPORT NSString * const NSFileHandleOperationException;
 
+GS_EXPORT_CLASS
 @interface NSPipe : NSObject
 {
 #if	GS_EXPOSE(NSPipe)

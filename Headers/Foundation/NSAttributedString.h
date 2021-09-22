@@ -20,7 +20,7 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    If you are interested in a warranty or support for this source code,
    contact Scott Christley <scottc@net-community.com> for more information.
@@ -28,7 +28,7 @@
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */
 
 /* Warning -	[-initWithString:attributes:] is the designated initialiser,
@@ -61,6 +61,7 @@ extern "C" {
 #import	<Foundation/NSArray.h>
 #import	<Foundation/NSCoder.h>
 
+GS_EXPORT_CLASS
 @interface NSAttributedString : NSObject <NSCoding, NSCopying, NSMutableCopying>
 {
 }
@@ -100,6 +101,7 @@ extern "C" {
 @end //NSAttributedString
 
 
+GS_EXPORT_CLASS
 @interface NSMutableAttributedString : NSAttributedString
 {
 }
@@ -132,6 +134,8 @@ extern "C" {
 - (void) endEditing;
 
 @end //NSMutableAttributedString
+
+typedef NSString* NSAttributedStringKey;
 
 #endif /* GS_API_MACOSX */
 

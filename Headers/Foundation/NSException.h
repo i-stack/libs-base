@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
     <title>NSException and NSAssertionHandler class reference</title>
 
@@ -35,7 +35,7 @@
 
 #if     defined(_NATIVE_OBJC_EXCEPTIONS)
 #  define USER_NATIVE_OBJC_EXCEPTIONS       1
-#elif defined(BASE_NATIVE_OBJC_EXCEPTIONS) && defined(OBJC_ZEROCOST_EXCEPTIONS)
+#elif   BASE_NATIVE_OBJC_EXCEPTIONS && defined(OBJC_ZEROCOST_EXCEPTIONS)
 #  define USER_NATIVE_OBJC_EXCEPTIONS       1
 #  define _NATIVE_OBJC_EXCEPTIONS           1
 #endif
@@ -59,7 +59,9 @@
  * implementation of longjmp in mingw-w64  sometimes crashes in msvcrt.dll
  * but the builtin version provided by gcc seems to work.
  */
+#undef	setjmp
 #define	setjmp(X)	__builtin_setjmp(X)
+#undef	longjmp
 #define	longjmp(X,Y)	__builtin_longjmp(X,Y)
 #endif
 
@@ -108,6 +110,7 @@ extern "C" {
    message before the program terminates.
    </p>
 */
+GS_EXPORT_CLASS
 @interface NSException : NSObject <NSCoding, NSCopying>
 {    
 #if	GS_EXPOSE(NSException)
@@ -418,6 +421,7 @@ GS_EXPORT void _NSRemoveHandler( NSHandler *handler );
  * The numbered macros arre obsolete, dating from a time when NSAssert() and
  * NSCAssert() did not support a variable number of arguments.
  */
+GS_EXPORT_CLASS
 @interface NSAssertionHandler : NSObject
 
 + (NSAssertionHandler*) currentHandler;
@@ -434,7 +438,8 @@ GS_EXPORT void _NSRemoveHandler( NSHandler *handler );
 		   description: (NSString*)format,... GS_NORETURN_METHOD;
 
 @end
-extern NSString *const NSAssertionHandlerKey;
+
+GS_EXPORT NSString *const NSAssertionHandlerKey;
 
 #ifdef	NS_BLOCK_ASSERTIONS
 #define NSAssert(condition, desc, args...)		

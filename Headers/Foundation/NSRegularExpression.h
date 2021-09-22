@@ -12,12 +12,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */
 
 #ifndef _NSRegularExpression_h_GNUSTEP_BASE_INCLUDE
@@ -86,6 +86,7 @@ DEFINE_BLOCK_TYPE(GSRegexBlock, void, NSTextCheckingResult*,
  * pattern, but it usually in the order of milliseconds. The preset 1500,
  * setting value to 0 disables the work limit.
  */
+GS_EXPORT_CLASS
 @interface NSRegularExpression : NSObject <NSCoding, NSCopying>
 {
 #if	GS_EXPOSE(NSRegularExpression)

@@ -52,6 +52,7 @@
 #ifdef	HAVE_LIBXML
 
 #import "GNUstepBase/GSObjCRuntime.h"
+#import "GNUstepBase/NSDebug+GNUstepBase.h"
 #import "GNUstepBase/NSObject+GNUstepBase.h"
 #import "GNUstepBase/GSMime.h"
 #import "GNUstepBase/GSXML.h"
@@ -66,6 +67,7 @@
 #import "Foundation/NSFileManager.h"
 #import "Foundation/NSRunLoop.h"
 #import "Foundation/NSString.h"
+#import "Foundation/NSThread.h"
 #import "Foundation/NSTimer.h"
 #import "Foundation/NSTimeZone.h"
 #import "Foundation/NSURL.h"
@@ -103,8 +105,7 @@
  *
  */
 static Class NSString_class;
-static Class treeClass;
-static IMP usImp;
+static id (*usImp)(id, SEL, const unsigned char*);
 static SEL usSel;
 
 static xmlExternalEntityLoader  originalLoader = NULL;
@@ -155,20 +156,48 @@ static char * xml_strdup(const char *from)
   return to;
 }
 
-static void
-setupCache()
+@implementation	NSObject (SetupForGSXML)
++ (void) _setupForGSXML
 {
-  if (cacheDone == NO)
+  if (NO == cacheDone)
     {
-      cacheDone = YES;
+      xmlInitParser();
       xmlMemSetup(free, malloc, realloc, xml_strdup);
       xmlInitializeCatalog();
       xmlDefaultSAXHandlerInit();
       NSString_class = [NSString class];
       usSel = @selector(stringWithUTF8String:);
-      usImp = [NSString_class methodForSelector: usSel];
-      treeClass = [GSTreeSAXHandler class];
+      usImp = (id (*)(id, SEL, const unsigned char*))
+	[NSString_class methodForSelector: usSel];
+      cacheDone = YES;
     }
+}
+@end
+
+static void
+setupCache()
+{
+  if (cacheDone == NO)
+    {
+      /* Setup of libxml2 must be done on main thread.
+       */
+      [NSObject performSelectorOnMainThread: @selector(_setupForGSXML)
+				 withObject: nil
+			      waitUntilDone: YES];
+    }
+}
+
+static int xmlNSInputStreamReadCallback(void *context, char *buffer, int len)
+{
+  NSInputStream *stream = (NSInputStream *)context;
+  return [stream read: (uint8_t *)buffer maxLength: len];
+}
+
+static int xmlNSInputStreamCloseCallback (void *context)
+{
+  NSInputStream *stream = (NSInputStream *)context;
+  [stream close];
+  return 0;
 }
 
 static xmlParserInputPtr
@@ -983,7 +1012,10 @@ static NSMapTable	*nodeNames = 0;
 	1,
 	1,
 	"utf-8");
-      xmlOutputBufferFlush(buf);
+      if (xmlOutputBufferFlush(buf) < 0)
+	{
+	  NSDebugMLog(@"Failed to flush XML description");
+	}
 #if LIBXML_VERSION < 20900
       string = UTF8StrLen(buf->buffer->content, buf->buffer->use);
 #else
@@ -2102,6 +2134,31 @@ static NSString	*endMarker = @"At end of incremental parse";
 }
 
 /**
+ * <p>
+ *   Initialisation of a new Parser with SAX handler (if not nil)
+ *   by calling -initWithSAXHandler:
+ * </p>
+ * <p>
+ *   Sets the input source for the parser to be the specified input stream,
+ *   so parsing of the entire document will be performed rather than
+ *   incremental parsing.
+ * </p>
+ */
+- (id) initWithSAXHandler: (GSSAXHandler*)handler
+	 withInputStream: (NSInputStream*)stream
+{
+  if (stream == nil || [stream isKindOfClass: [NSInputStream class]] == NO)
+    {
+      NSLog(@"Bad NSInputStream passed to initialize GSXMLParser");
+      DESTROY(self);
+      return nil;
+    }
+  src = RETAIN(stream);
+  self = [self initWithSAXHandler: handler];
+  return self;
+}
+
+/**
  * Set and return the previous value for blank text nodes support.
  * ignorableWhitespace nodes are only generated when running
  * the parser in validating mode and when the current element
@@ -2166,7 +2223,8 @@ static NSString	*endMarker = @"At end of incremental parse";
       return NO;
     }
 
-  if ([src isKindOfClass: [NSData class]])
+  if ([src isKindOfClass: [NSData class]]
+      || [src isKindOfClass: [NSInputStream class]])
     {
     }
   else if ([src isKindOfClass: NSString_class])
@@ -2193,14 +2251,22 @@ static NSString	*endMarker = @"At end of incremental parse";
     }
   else
     {
-       NSLog(@"source for [-parse] must be NSString, NSData or NSURL type");
+       NSLog(@"Source for [-parse] must be NSString, NSData, NSInputStream, or"
+         @" NSURL type");
        return NO;
     }
 
   tmp = RETAIN(src);
   ASSIGN(src, endMarker);
-  [self _parseChunk: tmp];
-  [self _parseChunk: nil];
+  if ([tmp isKindOfClass: [NSInputStream class]])
+    {
+      xmlParseDocument(lib);
+    }
+  else
+    {
+      [self _parseChunk: tmp];
+      [self _parseChunk: nil];
+    }
   RELEASE(tmp);
 
   if (((xmlParserCtxtPtr)lib)->wellFormed != 0
@@ -2381,7 +2447,19 @@ static NSString	*endMarker = @"At end of incremental parse";
     {
       file = ".";
     }
-  lib = (void*)xmlCreatePushParserCtxt([saxHandler lib], NULL, 0, 0, file);
+
+  if ([src isKindOfClass: [NSInputStream class]])
+    {
+      [(NSInputStream*)src open];
+      lib = (void*)xmlCreateIOParserCtxt([saxHandler lib], NULL,
+        xmlNSInputStreamReadCallback, xmlNSInputStreamCloseCallback,
+        (void*)src, XML_CHAR_ENCODING_NONE);
+    }
+  else
+    {
+      lib = (void*)xmlCreatePushParserCtxt([saxHandler lib], NULL, 0, 0, file);
+    }
+
   if (lib == NULL)
     {
       NSLog(@"Failed to create libxml parser context");
@@ -2850,7 +2928,7 @@ resolveEntityFunction(void *ctx,
   if (treeImp == 0) \
     { \
       sel = @selector(SELNAME); \
-      treeImp = (RET (*)ARGS)[treeClass instanceMethodForSelector: sel];\
+      treeImp = (RET (*)ARGS)[GSTreeSAXHandler instanceMethodForSelector: sel];\
     } \
   imp = (RET (*)ARGS)[HANDLER methodForSelector: sel]
 
@@ -3177,7 +3255,7 @@ warningFunction(void *ctx, const unsigned char *msg, ...)
   va_end(args);
 
   NSCAssert(ctx,@"No Context");
-  lineNumber = getLineNumber(ctx);
+  lineNumber = xmlSAX2GetLineNumber(ctx);
   colNumber = xmlSAX2GetColumnNumber(ctx);
   [HANDLER warning: estr
 	 colNumber: colNumber
@@ -3596,7 +3674,7 @@ fatalErrorFunction(void *ctx, const unsigned char *msg, ...)
     }
   else
     {
-      memcpy(lib, &xmlDefaultSAXHandler, sizeof(xmlSAXHandler));
+      xmlSAX2InitDefaultSAXHandler(lib, 0);
 
 #define	LIB	((xmlSAXHandlerPtr)lib)
       /*
@@ -3715,10 +3793,10 @@ fatalErrorFunction(void *ctx, const unsigned char *msg, ...)
     }
   else
     {
-      memcpy(lib, &xmlDefaultSAXHandler, sizeof(xmlSAXHandler));
+      xmlSAX2InitDefaultSAXHandler(lib, 0);
 
 #define	LIB	((xmlSAXHandlerPtr)lib)
-#define	SETCB(NAME,SEL) if ([self methodForSelector: @selector(SEL)] != [treeClass instanceMethodForSelector: @selector(SEL)]) LIB->NAME = (void*)NAME ## Function
+#define	SETCB(NAME,SEL) if ([self methodForSelector: @selector(SEL)] != [GSTreeSAXHandler instanceMethodForSelector: @selector(SEL)]) LIB->NAME = (void*)NAME ## Function
       /*
        * We must call xmlSAXVersion() BEFORE setting any functions as it
        * sets up default values and would trash our settings.
@@ -4363,20 +4441,34 @@ static BOOL warned = NO; if (warned == NO) { warned = YES; NSLog(@"WARNING, use 
 /*
  * Build dummy implementations of the classes if libxml is not available
  */
+GS_EXPORT_CLASS
 @interface GSXMLDummy : NSObject
 @end
+
+GS_EXPORT_CLASS
 @interface GSXMLDocument : GSXMLDummy
 @end
+
+GS_EXPORT_CLASS
 @interface GSXMLNamespace : GSXMLDummy
 @end
+
+GS_EXPORT_CLASS
 @interface GSXMLNode : GSXMLDummy
 @end
+
+GS_EXPORT_CLASS
 @interface GSSAXHandler : GSXMLDummy
 @end
+
+GS_EXPORT_CLASS
 @interface GSXMLParser : GSXMLDummy
 @end
+
+GS_EXPORT_CLASS
 @interface GSXMLAttribute : GSXMLNode
 @end
+
 @implementation GSXMLDummy
 + (id) allocWithZone: (NSZone*)z
 {
@@ -4406,16 +4498,28 @@ static BOOL warned = NO; if (warned == NO) { warned = YES; NSLog(@"WARNING, use 
   return nil;
 }
 @end
+
+GS_EXPORT_CLASS
 @implementation GSXMLDocument
 @end
+
+GS_EXPORT_CLASS
 @implementation GSXMLNamespace
 @end
+
+GS_EXPORT_CLASS
 @implementation GSXMLNode
 @end
+
+GS_EXPORT_CLASS
 @implementation GSSAXHandler
 @end
+
+GS_EXPORT_CLASS
 @implementation GSXMLParser
 @end
+
+GS_EXPORT_CLASS
 @implementation GSXMLAttribute
 @end
 

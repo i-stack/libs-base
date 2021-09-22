@@ -15,12 +15,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSProcessInfo class reference</title>
    $Date$ $Revision$
@@ -164,7 +164,7 @@ For more detailed assistance, please report the error to bug-gnustep@gnu.org.\n\
  *************************************************************************/
 @interface _NSConcreteProcessInfo: NSProcessInfo
 - (id) autorelease;
-- (void) release;
+- (oneway void) release;
 - (id) retain;
 @end
 
@@ -174,7 +174,7 @@ For more detailed assistance, please report the error to bug-gnustep@gnu.org.\n\
   return self;
 }
 
-- (void) release
+- (oneway void) release
 {
   return;
 }
@@ -230,6 +230,13 @@ static NSString		*_operatingSystemVersion = nil;
 static BOOL	fallbackInitialisation = NO;
 
 static NSMutableSet	*mySet = nil;
+
+#ifdef __ANDROID__
+static jobject _androidContext = NULL;
+static NSString *_androidFilesDir = nil;
+static NSString *_androidCacheDir = nil;
+#endif
+
 /*************************************************************************
  *** Implementing the gnustep_base_user_main function
  *************************************************************************/
@@ -943,7 +950,6 @@ extern char **__libc_argv;
     }
 }
 
-
 #else
 + (void) initialize
 {
@@ -980,21 +986,6 @@ int main(int argc, char *argv[], char *env[])
          objc_getClass(STRINGIFY(NXConstantString)),
          sizeof(_NSConstantStringClassReference));
 #endif
-
-#if defined(_WIN32)
-  WSADATA lpWSAData;
-
-  // Initialize Windows Sockets
-  if (WSAStartup(MAKEWORD(1,1), &lpWSAData))
-    {
-      printf("Could not startup Windows Sockets\n");
-      exit(1);
-    }
-#endif /* _WIN32 */
-
-#ifdef __MS_WIN__
-  _MB_init_runtime();
-#endif /* __MS_WIN__ */
 
   _gnu_process_args(argc, argv, env);
 
@@ -1133,7 +1124,7 @@ static void determineOperatingSystem()
        * use the information from NSBundle and only get the version info
        * here.
        */
-      _operatingSystemVersion = [[NSString alloc] initWithFormat: @"%d.%d",
+      _operatingSystemVersion = [[NSString alloc] initWithFormat: @"%lu.%lu",
         osver.dwMajorVersion, osver.dwMinorVersion];
 #else
 #if	defined(HAVE_SYS_UTSNAME_H)
@@ -1188,7 +1179,8 @@ static void determineOperatingSystem()
 	      _operatingSystemName = @"GSGNULinuxOperatingSystem";
 	      _operatingSystem = GSGNULinuxOperatingSystem;
 	    }
-	  else if ([os hasPrefix: @"mingw"] == YES)
+	  else if ([os hasPrefix: @"mingw"] == YES
+	    || [os isEqualToString: @"windows"] == YES)
 	    {
 	      _operatingSystemName = @"NSWindowsNTOperatingSystem";
 	      _operatingSystem = NSWindowsNTOperatingSystem;
@@ -1560,6 +1552,84 @@ GSInitializeProcess(int argc, char **argv, char **envp)
   [procLock unlock];
 }
 
+#ifdef __ANDROID__
+void
+GSInitializeProcessAndroid(JNIEnv *env, jobject context)
+{
+  [NSProcessInfo class];
+
+  // create global reference to to prevent garbage collection
+  _androidContext = (*env)->NewGlobalRef(env, context);
+
+  // get package code path (path to APK)
+  jclass cls = (*env)->GetObjectClass(env, context);
+  jmethodID packageCodePathMethod = (*env)->GetMethodID(env, cls, "getPackageCodePath", "()Ljava/lang/String;");
+  jstring packageCodePathJava = (*env)->CallObjectMethod(env, context, packageCodePathMethod);
+  const char *packageCodePath = (*env)->GetStringUTFChars(env, packageCodePathJava, NULL);
+
+  // get package name
+  jmethodID packageNameMethod = (*env)->GetMethodID(env, cls, "getPackageName", "()Ljava/lang/String;");
+  jstring packageNameJava = (*env)->CallObjectMethod(env, context, packageNameMethod);
+  const char *packageName = (*env)->GetStringUTFChars(env, packageNameJava, NULL);
+
+  // create fake executable path consisting of package code path (without .apk)
+  // and package name as executable
+  char *lastSlash = strrchr(packageCodePath, '/');
+  if (lastSlash == NULL)
+    {
+      lastSlash = (char *)packageCodePath + strlen(packageCodePath);
+    }
+  char *arg0;
+  asprintf(&arg0, "%.*s/%s", (int)(lastSlash - packageCodePath), packageCodePath, packageName);
+
+  (*env)->ReleaseStringUTFChars(env, packageCodePathJava, packageCodePath);
+  (*env)->ReleaseStringUTFChars(env, packageNameJava, packageName);
+
+  // initialize process
+  [procLock lock];
+  fallbackInitialisation = YES;
+  char *argv[] = {
+    arg0,
+    "-GSLogSyslog", "YES" // use syslog (available via logcat) instead of stdout/stderr (not available on Android)
+  };
+  _gnu_process_args(sizeof(argv)/sizeof(char *), argv, NULL);
+  [procLock unlock];
+
+  free(arg0);
+
+  // get File class and path method
+  jclass fileCls = (*env)->FindClass(env, "java/io/File");
+  jmethodID getAbsolutePathMethod = (*env)->GetMethodID(env, fileCls, "getAbsolutePath", "()Ljava/lang/String;");
+
+  // get Android files dir
+  jmethodID filesDirMethod = (*env)->GetMethodID(env, cls, "getFilesDir", "()Ljava/io/File;");
+  jobject filesDirObj = (*env)->CallObjectMethod(env, context, filesDirMethod);
+  jstring filesDirJava = (*env)->CallObjectMethod(env, filesDirObj, getAbsolutePathMethod);
+	const jchar *filesDirUnichars = (*env)->GetStringChars(env, filesDirJava, NULL);
+  jsize filesDirLength = (*env)->GetStringLength(env, filesDirJava);
+  _androidFilesDir = [NSString stringWithCharacters:filesDirUnichars length:filesDirLength];
+  (*env)->ReleaseStringChars(env, filesDirJava, filesDirUnichars);
+
+  // get Android cache dir
+  jmethodID cacheDirMethod = (*env)->GetMethodID(env, cls, "getCacheDir", "()Ljava/io/File;");
+  jobject cacheDirObj = (*env)->CallObjectMethod(env, context, cacheDirMethod);
+  jstring cacheDirJava = (*env)->CallObjectMethod(env, cacheDirObj, getAbsolutePathMethod);
+	const jchar *cacheDirUnichars = (*env)->GetStringChars(env, cacheDirJava, NULL);
+  jsize cacheDirLength = (*env)->GetStringLength(env, cacheDirJava);
+  _androidCacheDir = [NSString stringWithCharacters:cacheDirUnichars length:cacheDirLength];
+  (*env)->ReleaseStringChars(env, cacheDirJava, cacheDirUnichars);
+
+  // get asset manager and initialize NSBundle
+  jmethodID assetManagerMethod = (*env)->GetMethodID(env, cls, "getAssets", "()Landroid/content/res/AssetManager;");
+  jstring assetManagerJava = (*env)->CallObjectMethod(env, context, assetManagerMethod);
+  [NSBundle setJavaAssetManager:assetManagerJava withJNIEnv:env];
+
+  // clean up our NSTemporaryDirectory() if it exists
+  NSString *tempDirName = [_androidCacheDir stringByAppendingPathComponent: @"tmp"];
+  [[NSFileManager defaultManager] removeItemAtPath:tempDirName error:NULL];
+}
+#endif
+
 @implementation	NSProcessInfo (GNUstep)
 
 + (void) initializeWithArguments: (char**)argv
@@ -1591,6 +1661,24 @@ GSInitializeProcess(int argc, char **argv, char **envp)
     }
   return NO;
 }
+
+#ifdef __ANDROID__
+- (jobject) androidContext
+{
+  return _androidContext;
+}
+
+- (NSString *) androidFilesDir
+{
+  return _androidFilesDir;
+}
+
+- (NSString *) androidCacheDir
+{
+  return _androidCacheDir;
+}
+#endif
+
 @end
 
 BOOL

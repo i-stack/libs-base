@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __NSSortDescriptor_h_GNUSTEP_BASE_INCLUDE
@@ -43,6 +43,7 @@ extern "C" {
  * arrays containging collections or other objects whose properties
  * can be obtained using key names.
  */
+GS_EXPORT_CLASS
 @interface NSSortDescriptor : NSObject <NSCopying, NSCoding>
 {
 #if	GS_EXPOSE(NSSortDescriptor)
@@ -50,6 +51,7 @@ extern "C" {
   NSString *_key;
   BOOL	_ascending;
   SEL	_selector;
+  NSComparator _comparator;
 #endif
 #if     GS_NONFRAGILE
 #else
@@ -92,6 +94,24 @@ extern "C" {
 + (id) sortDescriptorWithKey: (NSString *)aKey 
                    ascending: (BOOL)ascending 
                     selector: (SEL)aSelector;
+
+/** <p>Returns an autoreleased sort descriptor initialized to perform 
+ * comparisons in the specified order using the comparator to compare 
+ * the property aKey of each object.</p>
+ *
+ * <p>See also -initWithKey:ascending:selector:.</p>
+ */
++ (id)sortDescriptorWithKey: (NSString *)key 
+                  ascending: (BOOL)ascending 
+                 comparator: (NSComparator)cmptr;
+
+/** <init />
+ * Initialises the receiver to perform comparisons in the specified order
+ * using the comparator to compare the property key of each object.
+ */
+- (id) initWithKey: (NSString *)key
+         ascending: (BOOL)ascending
+        comparator: (NSComparator)cmptr;
 #endif
 
 /** Initialises the receiver for comparisons using the 'compare:' selector
@@ -102,11 +122,12 @@ extern "C" {
 
 /** <init />
  * Initialises the receiver to perform comparisons in the specified order
- * using selector to compar the property key of each object.
+ * using selector to compare the property key of each object.
  */
 - (id) initWithKey: (NSString *)key
          ascending: (BOOL)ascending
           selector: (SEL)selector;
+
 
 /** Returns the key used to obtain the property on which comparisons are based.
  */

@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */
 
 #ifndef __NSRunLoop_h_GNUSTEP_BASE_INCLUDE
@@ -34,13 +34,17 @@ extern "C" {
 
 @class NSTimer, NSDate, NSPort;
 
+typedef NSString* NSRunLoopMode;
+  
 /**
  * Run loop mode used to deal with input sources other than NSConnections or
  * dialog windows.  Most commonly used. Defined in
  * <code>Foundation/NSRunLoop.h</code>.
  */
-GS_EXPORT NSString * const NSDefaultRunLoopMode;
+GS_EXPORT NSRunLoopMode const NSDefaultRunLoopMode;
+GS_EXPORT NSRunLoopMode const NSRunLoopCommonModes;
 
+GS_EXPORT_CLASS
 @interface NSRunLoop : NSObject
 {
 #if	GS_EXPOSE(NSRunLoop)
@@ -124,7 +128,7 @@ GS_EXPORT NSString * const NSDefaultRunLoopMode;
  * run loop.
  */
 typedef	enum {
-#ifdef __MINGW__
+#ifdef _WIN32
     ET_HANDLE,	/* Watch for an I/O event on a handle.		*/
     ET_RPORT,	/* Watch for message arriving on port.		*/
     ET_WINMSG,	/* Watch for a message on a window handle.	*/

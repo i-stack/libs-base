@@ -13,12 +13,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    */
 
@@ -56,12 +56,21 @@
 #endif
 
 #ifdef _WIN32
-extern const char *inet_ntop(int, const void *, char *, size_t);
-extern int inet_pton(int , const char *, void *);
-#define	OPTLEN	int
-#else
-#define	OPTLEN	socklen_t
-#endif
+  #ifdef HAVE_WS2TCPIP_H
+  #include <ws2tcpip.h>
+  #endif // HAVE_WS2TCPIP_H
+
+  #if !defined(HAVE_INET_NTOP)
+  extern const char* WSAAPI inet_ntop(int, const void *, char *, size_t);
+  #endif
+  #if !defined(HAVE_INET_NTOP)
+  extern int WSAAPI inet_pton(int , const char *, void *);
+  #endif
+
+  #define	OPTLEN	int
+#else  // _WIN32
+  #define	OPTLEN	socklen_t
+#endif // _WIN32
 
 unsigned
 GSPrivateSockaddrLength(struct sockaddr *addr)
@@ -279,6 +288,7 @@ GSPrivateSockaddrSetup(NSString *machine, uint16_t port,
 - (BOOL) handshake;     /* A handshake/hello is in progress. */
 - (void) hello;         /* Start up the session handshake.   */
 - (NSInteger) read: (uint8_t *)buffer maxLength: (NSUInteger)len;
+- (void) remove: (NSStream*)stream;	/* Stream no longer available */
 - (void) stream: (NSStream*)stream handleEvent: (NSStreamEvent)event;
 - (NSInteger) write: (const uint8_t *)buffer maxLength: (NSUInteger)len;
 @end
@@ -337,6 +347,18 @@ GSPrivateSockaddrSetup(NSString *machine, uint16_t port,
   return 0;
 }
 
+- (void) remove: (NSStream*)stream
+{
+  if ((id)stream == (id)istream)
+    {
+      istream = nil;
+    }
+  if ((id)stream == (id)ostream)
+    {
+      ostream = nil;
+    }
+}
+
 - (void) stream: (NSStream*)stream handleEvent: (NSStreamEvent)event
 {
   [self subclassResponsibility: _cmd];
@@ -363,7 +385,7 @@ GSPrivateSockaddrSetup(NSString *machine, uint16_t port,
  * the output stream's one has precedence.
  */
 + (void) populateProperties: (NSMutableDictionary**)dict
-            withTLSPriority: (NSString*)pri
+          withSecurityLevel: (NSString*)l
             fromInputStream: (NSStream*)i
              orOutputStream: (NSStream*)o;
 
@@ -434,6 +456,8 @@ GSTLSPush(gnutls_transport_ptr_t handle, const void *buffer, size_t len)
 #endif
 
     }
+  NSDebugFLLog(@"NSStream", @"GSTLSPush write %p of %u on %u",
+    [tls ostream], (unsigned)result, (unsigned)len);
   return result;
 }
 
@@ -463,7 +487,7 @@ static NSArray  *keys = nil;
 }
 
 + (void) populateProperties: (NSMutableDictionary**)dict
-	    withTLSPriority: (NSString*)pri
+	  withSecurityLevel: (NSString*)l
 	    fromInputStream: (NSStream*)i
 	     orOutputStream: (NSStream*)o
 {
@@ -473,9 +497,9 @@ static NSArray  *keys = nil;
       NSMutableDictionary       *opts = *dict;
       NSUInteger                count;
       
-      if (nil != pri)
+      if (nil != l)
 	{
-	  [opts setObject: pri forKey: GSTLSPriority];
+	  [opts setObject: l forKey: NSStreamSocketSecurityLevelKey];
 	}
       count = [keys count];
       while (count-- > 0)
@@ -643,7 +667,7 @@ static NSArray  *keys = nil;
    */
   opts = [NSMutableDictionary new];
   [[self class] populateProperties: &opts
-		   withTLSPriority: str
+		 withSecurityLevel: str
 		   fromInputStream: i
 		    orOutputStream: o];
   
@@ -675,7 +699,7 @@ static NSArray  *keys = nil;
 - (void) stream: (NSStream*)stream handleEvent: (NSStreamEvent)event
 {
   NSDebugMLLog(@"NSStream",
-    @"GSTLSHandler got %"PRIdPTR" on %p", event, stream);
+    @"GSTLSHandler got %@ on %@", [stream stringFromEvent: event], stream);
 
   if (handshake == YES)
     {
@@ -702,7 +726,7 @@ static NSArray  *keys = nil;
       if (NO == handshake)
         {
           NSDebugMLLog(@"NSStream",
-            @"GSTLSHandler completed on %p", stream);
+            @"GSTLSHandler completed on %@", stream);
 
           /* Make sure that, if ostream gets released as a result of
            * the event we send to istream, it doesn't get deallocated
@@ -742,7 +766,26 @@ static NSArray  *keys = nil;
 
 - (NSInteger) write: (const uint8_t *)buffer maxLength: (NSUInteger)len
 {
-  return [session write: buffer length: len];
+  NSInteger	offset = 0;
+
+  /* The low level code to perform the TLS session write may return a
+   * partial write even though the output stream is still writable.
+   * That means we wouldn't get an event to say there's more space and
+   * our overall write (for a large amount of data) could hang.  
+   * To avoid that, we try writing more data as long as the stream
+   * still has space available.
+   */
+  while ([ostream hasSpaceAvailable] && offset < len)
+    {
+      NSInteger	written;
+
+      written = [session write: buffer + offset length: len - offset];
+      if (written > 0)
+	{
+	  offset += written;
+	}
+    }
+  return offset;
 }
 
 @end
@@ -777,7 +820,7 @@ static NSArray  *keys = nil;
 }
 
 + (void) populateProperties: (NSMutableDictionary**)dict
-	    withTLSPriority: (NSString*)pri
+	  withSecurityLevel: (NSString*)l
 	    fromInputStream: (NSStream*)i
 	     orOutputStream: (NSStream*)o
 {
@@ -787,9 +830,9 @@ static NSArray  *keys = nil;
   
   if (NULL != dict)
     {
-      if (nil != pri)
+      if (nil != l)
 	{
-	  [opts setObject: pri forKey: GSTLSPriority];
+	  [opts setObject: l forKey: NSStreamSocketSecurityLevelKey];
 	}
       count = [keys count];
       while (count-- > 0)
@@ -1475,8 +1518,15 @@ setNonBlocking(SOCKET fd)
     }
   [_sibling _setSibling: nil];
   _sibling = nil;
+  [_handler remove: self];
   DESTROY(_handler);
   [super dealloc];
+}
+
+- (NSString*) description
+{
+  return [NSString stringWithFormat: @"%@ sock %lld loopID %p",
+    [super description], (long long)_sock, _loopID];
 }
 
 - (id) init
@@ -1511,7 +1561,7 @@ setNonBlocking(SOCKET fd)
   if (result == nil && _address.s.sa_family != AF_UNSPEC)
     {
       SOCKET    	s = [self _sock];
-      struct sockaddr	sin;
+      sockaddr_any	sin;
       socklen_t	        size = sizeof(sin);
 
       memset(&sin, '\0', size);
@@ -1519,7 +1569,7 @@ setNonBlocking(SOCKET fd)
 	{
 	  if (getsockname(s, (struct sockaddr*)&sin, (OPTLEN*)&size) != -1)
 	    {
-	      result = GSPrivateSockaddrHost(&sin);
+	      result = GSPrivateSockaddrHost((struct sockaddr*)&sin);
 	    }
 	}
       else if ([key isEqualToString: GSStreamLocalPortKey])
@@ -1527,14 +1577,14 @@ setNonBlocking(SOCKET fd)
 	  if (getsockname(s, (struct sockaddr*)&sin, (OPTLEN*)&size) != -1)
 	    {
 	      result = [NSString stringWithFormat: @"%d",
-		(int)GSPrivateSockaddrPort(&sin)];
+		(int)GSPrivateSockaddrPort((struct sockaddr*)&sin)];
 	    }
 	}
       else if ([key isEqualToString: GSStreamRemoteAddressKey])
 	{
 	  if (getpeername(s, (struct sockaddr*)&sin, (OPTLEN*)&size) != -1)
 	    {
-	      result = GSPrivateSockaddrHost(&sin);
+	      result = GSPrivateSockaddrHost((struct sockaddr*)&sin);
 	    }
 	}
       else if ([key isEqualToString: GSStreamRemotePortKey])
@@ -1542,7 +1592,7 @@ setNonBlocking(SOCKET fd)
 	  if (getpeername(s, (struct sockaddr*)&sin, (OPTLEN*)&size) != -1)
 	    {
 	      result = [NSString stringWithFormat: @"%d",
-		(int)GSPrivateSockaddrPort(&sin)];
+		(int)GSPrivateSockaddrPort((struct sockaddr*)&sin)];
 	    }
 	}
     }
@@ -1563,14 +1613,12 @@ setNonBlocking(SOCKET fd)
    */
   if (_handler != nil && [_handler handshake] == YES)
     {
-      id        del = _delegate;
-      BOOL      val = _delegateValid;
-
-      _delegate = _handler;
-      _delegateValid = YES;
-      [super _sendEvent: event];
-      _delegate = del;
-      _delegateValid = val;
+      /* Must retain self here to avoid premature deallocation of input
+       * and/or output stream in case of an error during TLS handshake.
+       */
+      RETAIN(self);
+      [super _sendEvent: event delegate: _handler];
+      RELEASE(self);
     }
   else
     {
@@ -1875,9 +1923,15 @@ setNonBlocking(SOCKET fd)
        * closed, we must call WSAEventSelect to ensure that the event handle
        * of the sibling is used to signal events from now on.
        */
-      WSAEventSelect(_sock, _loopID, FD_ALL_EVENTS);
       shutdown(_sock, SHUT_RD);
-      WSAEventSelect(_sock, [_sibling _loopID], FD_ALL_EVENTS);
+      [_sibling _unschedule];
+      if (WSAEventSelect(_sock, [_sibling _loopID], FD_ALL_EVENTS)
+	== SOCKET_ERROR)
+	{
+          NSDebugMLLog(@"NSStream", @"%@ Error %d transferring to %@",
+	    self, WSAGetLastError(), _sibling);
+	}
+      [_sibling _schedule];
     }
   else
     {
@@ -2018,8 +2072,15 @@ setNonBlocking(SOCKET fd)
       if (WSAEnumNetworkEvents(_sock, _loopID, &events) == SOCKET_ERROR)
 	{
 	  error = WSAGetLastError();
+          NSDebugMLLog(@"NSStream", @"%@ Error %d", self, error);
 	}
-// else NSLog(@"EVENTS 0x%x on %p", events.lNetworkEvents, self);
+#ifndef	NDEBUG
+      else
+	{
+	  NSDebugMLLog(@"NSStream", @"%@ EVENTS 0x%lx",
+	    self, events.lNetworkEvents);
+	}
+#endif
 
       if ([self streamStatus] == NSStreamStatusOpening)
 	{
@@ -2051,9 +2112,12 @@ setNonBlocking(SOCKET fd)
 	{
 	  errno = error;
 	  [self _recordError];
-	  [_sibling _recordError];
 	  [self _sendEvent: NSStreamEventErrorOccurred];
-	  [_sibling _sendEvent: NSStreamEventErrorOccurred];
+	  if ([_sibling streamStatus] == NSStreamStatusOpening)
+	    {
+	      [_sibling _recordError];
+	      [_sibling _sendEvent: NSStreamEventErrorOccurred];
+	    }
 	}
       else
 	{
@@ -2371,9 +2435,16 @@ setNonBlocking(SOCKET fd)
        * closed, we must call WSAEventSelect to ensure that the event handle
        * of the sibling is used to signal events from now on.
        */
-      WSAEventSelect(_sock, _loopID, FD_ALL_EVENTS);
       shutdown(_sock, SHUT_WR);
-      WSAEventSelect(_sock, [_sibling _loopID], FD_ALL_EVENTS);
+      _sock = INVALID_SOCKET;
+      [_sibling _unschedule];
+      if (WSAEventSelect([_sibling _sock], [_sibling _loopID], FD_ALL_EVENTS)
+	== SOCKET_ERROR)
+	{
+          NSDebugMLLog(@"NSStream", @"%@ Error %d transferring to %@",
+	    self, WSAGetLastError(), _sibling);
+	}
+      [_sibling _schedule];
     }
   else
     {
@@ -2463,8 +2534,15 @@ setNonBlocking(SOCKET fd)
       if (WSAEnumNetworkEvents(_sock, _loopID, &events) == SOCKET_ERROR)
 	{
 	  error = WSAGetLastError();
+          NSDebugMLLog(@"NSStream", @"%@ Error %d", self, error);
 	}
-// else NSLog(@"EVENTS 0x%x on %p", events.lNetworkEvents, self);
+#ifndef	NDEBUG
+      else
+	{
+	  NSDebugMLLog(@"NSStream", @"%@ EVENTS 0x%lx",
+	    self, events.lNetworkEvents);
+	}
+#endif
 
       if ([self streamStatus] == NSStreamStatusOpening)
 	{
@@ -2497,9 +2575,12 @@ setNonBlocking(SOCKET fd)
 	{
 	  errno = error;
 	  [self _recordError];
-	  [_sibling _recordError];
 	  [self _sendEvent: NSStreamEventErrorOccurred];
-	  [_sibling _sendEvent: NSStreamEventErrorOccurred];
+	  if ([_sibling streamStatus] == NSStreamStatusOpening)
+	    {
+	      [_sibling _recordError];
+	      [_sibling _sendEvent: NSStreamEventErrorOccurred];
+	    }
 	}
       else
 	{
@@ -2697,7 +2778,10 @@ setNonBlocking(SOCKET fd)
       return;
     }
 #if	defined(_WIN32)
-  WSAEventSelect(_sock, _loopID, FD_ALL_EVENTS);
+  if (_loopID != WSA_INVALID_EVENT)
+    {
+      WSAEventSelect(_sock, _loopID, FD_ALL_EVENTS);
+    }
 #endif
   [super open];
 }
@@ -2783,7 +2867,7 @@ setNonBlocking(SOCKET fd)
 	  [opts setObject: str forKey: NSStreamSocketSecurityLevelKey];
 	  // copy the properties in the 'opts'
 	  [GSTLSHandler populateProperties: &opts
-			   withTLSPriority: str
+			 withSecurityLevel: str
 			   fromInputStream: self
 			    orOutputStream: nil];
 	  // and set the input/output streams's properties from the 'opts'

@@ -15,12 +15,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSOperation class reference</title>
    $Date: 2008-06-08 11:38:33 +0100 (Sun, 08 Jun 2008) $ $Revision: 26606 $
@@ -42,7 +42,7 @@
   BOOL blocked; \
   BOOL ready; \
   NSMutableArray *dependencies; \
-  GSOperationCompletionBlock completionBlock;
+  id completionBlock;
 
 #define	GS_NSOperationQueue_IVARS \
   NSRecursiveLock	*lock; \
@@ -97,7 +97,7 @@ static NSArray	*empty = nil;
 + (void) initialize
 {
   empty = [NSArray new];
-  [[NSObject leakAt: &empty] release];
+  RELEASE([NSObject leakAt: &empty]);
 }
 
 - (void) addDependency: (NSOperation *)op
@@ -197,7 +197,7 @@ static NSArray	*empty = nil;
 
 - (GSOperationCompletionBlock) completionBlock
 {
-  return internal->completionBlock;
+  return (GSOperationCompletionBlock)internal->completionBlock;
 }
 
 - (void) dealloc
@@ -206,7 +206,10 @@ static NSArray	*empty = nil;
     {
       NSOperation	*op;
 
-      [self removeObserver: self forKeyPath: @"isFinished"];
+      if (!internal->finished)
+        {
+          [self removeObserver: self forKeyPath: @"isFinished"];
+        }
       while ((op = [internal->dependencies lastObject]) != nil)
 	{
 	  [self removeDependency: op];
@@ -214,6 +217,7 @@ static NSArray	*empty = nil;
       RELEASE(internal->dependencies);
       RELEASE(internal->cond);
       RELEASE(internal->lock);
+      RELEASE(internal->completionBlock);
       GS_DESTROY_INTERNAL(NSOperation);
     }
   [super dealloc];
@@ -378,7 +382,7 @@ static NSArray	*empty = nil;
 
 - (void) setCompletionBlock: (GSOperationCompletionBlock)aBlock
 {
-  internal->completionBlock = aBlock;
+  ASSIGNCOPY(internal->completionBlock, (id)aBlock);
 }
 
 - (void) setQueuePriority: (NSOperationQueuePriority)pri
@@ -426,8 +430,9 @@ static NSArray	*empty = nil;
 
 - (void) start
 {
-  NSAutoreleasePool	*pool = [NSAutoreleasePool new];
-  double		prio = [NSThread  threadPriority];
+  ENTER_POOL
+
+  double	prio = [NSThread  threadPriority];
 
   AUTORELEASE(RETAIN(self));	// Make sure we exist while running.
   [internal->lock lock];
@@ -482,7 +487,7 @@ static NSArray	*empty = nil;
   NS_ENDHANDLER;
 
   [self _finish];
-  [pool release];
+  LEAVE_POOL
 }
 
 - (double) threadPriority
@@ -498,12 +503,11 @@ static NSArray	*empty = nil;
 @end
 
 @implementation	NSOperation (Private)
+/* NB code calling this method must ensure that the receiver is retained
+ * until after the method returns.
+ */
 - (void) _finish
 {
-  /* retain while finishing so that we don't get deallocated when our
-   * queue removes and releases us.
-   */
-  [self retain];
   [internal->lock lock];
   if (NO == internal->finished)
     {
@@ -524,14 +528,67 @@ static NSArray	*empty = nil;
 	}
       if (NULL != internal->completionBlock)
 	{
-	  CALL_BLOCK_NO_ARGS(internal->completionBlock);
+	  CALL_BLOCK_NO_ARGS(
+	    ((GSOperationCompletionBlock)internal->completionBlock));
 	}
     }
   [internal->lock unlock];
-  [self release];
 }
 
 @end
+
+
+@implementation NSBlockOperation
+
++ (instancetype) blockOperationWithBlock: (GSBlockOperationBlock)block
+{
+  NSBlockOperation *op = [[self alloc] init];
+
+  [op addExecutionBlock: block];
+  return AUTORELEASE(op);
+}
+
+- (void) addExecutionBlock: (GSBlockOperationBlock)block
+{
+  id	blockCopy = (id)Block_copy(block);
+
+  [_executionBlocks addObject: blockCopy];
+  RELEASE(blockCopy);
+}
+
+- (void) dealloc
+{
+  RELEASE(_executionBlocks);
+  [super dealloc];
+}
+
+- (NSArray *) executionBlocks
+{
+  return _executionBlocks;
+}
+
+- (id) init
+{
+  self = [super init];
+  if (self != nil)
+    {
+      _executionBlocks = [[NSMutableArray alloc] initWithCapacity: 1];
+    }
+  return self;
+}
+
+- (void) main
+{
+  NSEnumerator 		*en = [[self executionBlocks] objectEnumerator];
+  GSBlockOperationBlock theBlock;
+
+  while ((theBlock = (GSBlockOperationBlock)[en nextObject]) != NULL)
+    {
+      CALL_BLOCK_NO_ARGS(theBlock);
+    }
+}
+@end
+
 
 #undef	GSInternal
 #define	GSInternal	NSOperationQueueInternal
@@ -619,6 +676,13 @@ static NSOperationQueue *mainQueue = nil;
     }
   [internal->lock unlock];
 }
+
+- (void) addOperationWithBlock: (GSBlockOperationBlock)block
+{
+  NSBlockOperation *bop = [NSBlockOperation blockOperationWithBlock: block];
+  [self addOperation: bop];
+}
+
 
 - (void) addOperations: (NSArray *)ops
      waitUntilFinished: (BOOL)shouldWait
@@ -775,9 +839,9 @@ static NSOperationQueue *mainQueue = nil;
       internal->name
 	= [[NSString alloc] initWithFormat: @"NSOperation %p", self];
     }
-  s = [internal->name retain];
+  s = RETAIN(internal->name);
   [internal->lock unlock];
-  return [s autorelease];
+  return AUTORELEASE(s);
 }
 
 - (NSUInteger) operationCount
@@ -827,7 +891,7 @@ static NSOperationQueue *mainQueue = nil;
   if (NO == [internal->name isEqual: s])
     {
       [self willChangeValueForKey: @"name"];
-      [internal->name release];
+      RELEASE(internal->name);
       internal->name = [s copy];
       [self didChangeValueForKey: @"name"];
     }
@@ -854,10 +918,10 @@ static NSOperationQueue *mainQueue = nil;
   [internal->lock lock];
   while ((op = [internal->operations lastObject]) != nil)
     {
-      [op retain];
+      RETAIN(op);
       [internal->lock unlock];
       [op waitUntilFinished];
-      [op release];
+      RELEASE(op);
       [internal->lock lock];
     }
   [internal->lock unlock];
@@ -918,7 +982,7 @@ static NSOperationQueue *mainQueue = nil;
 
 - (void) _thread
 {
-  NSAutoreleasePool	*pool = [NSAutoreleasePool new];
+  CREATE_AUTORELEASE_POOL(arp);
 
   [[[NSThread currentThread] threadDictionary] setObject: self
                                                   forKey: threadKey];
@@ -927,6 +991,11 @@ static NSOperationQueue *mainQueue = nil;
       NSOperation	*op;
       NSDate		*when;
       BOOL		found;
+      /* We use a pool for each operation in case releasing the operation
+       * causes it to be deallocated, and the deallocation of the operation
+       * autoreleases something which needs to be cleaned up.
+       */
+      RECREATE_AUTORELEASE_POOL(arp);
 
       when = [[NSDate alloc] initWithTimeIntervalSinceNow: 5.0];
       found = [internal->cond lockWhenCondition: 1 beforeDate: when];
@@ -961,11 +1030,10 @@ static NSOperationQueue *mainQueue = nil;
 	{
           NS_DURING
 	    {
-	      NSAutoreleasePool	*opPool = [NSAutoreleasePool new];
-
+	      ENTER_POOL
               [NSThread setThreadPriority: [op threadPriority]];
               [op start];
-	      RELEASE(opPool);
+	      LEAVE_POOL
 	    }
           NS_HANDLER
 	    {
@@ -982,7 +1050,7 @@ static NSOperationQueue *mainQueue = nil;
   [internal->lock lock];
   internal->threadCount--;
   [internal->lock unlock];
-  RELEASE(pool);
+  DESTROY(arp);
   [NSThread exit];
 }
 
@@ -1000,6 +1068,7 @@ static NSOperationQueue *mainQueue = nil;
       max = maxConcurrent;
     }
 
+  NS_DURING
   while (NO == [self isSuspended]
     && max > internal->executing
     && [internal->waiting count] > 0)
@@ -1038,15 +1107,30 @@ static NSOperationQueue *mainQueue = nil;
 	    || (pending > 0 && internal->threadCount < POOL))
 	    {
 	      internal->threadCount++;
-	      [NSThread detachNewThreadSelector: @selector(_thread)
-				       toTarget: self
-				     withObject: nil];
+	      NS_DURING
+		{
+		  [NSThread detachNewThreadSelector: @selector(_thread)
+					   toTarget: self
+					 withObject: nil];
+		}
+	      NS_HANDLER
+		{
+		  NSLog(@"Failed to create thread for %@: %@",
+		    self, localException);
+		}
+	      NS_ENDHANDLER
 	    }
 	  /* Tell the thread pool that there is an operation to start.
 	   */
 	  [internal->cond unlockWithCondition: 1];
 	}
     }
+  NS_HANDLER
+    {
+      [internal->lock unlock];
+      [localException raise];
+    }
+  NS_ENDHANDLER
   [internal->lock unlock];
 }
 

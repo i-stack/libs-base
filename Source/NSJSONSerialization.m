@@ -468,11 +468,16 @@ parseNumber(ParserState *state)
     {\
       bufferSize *= 2;\
       if (number == numberBuffer)\
-	number = malloc(bufferSize);\
+        {\
+          number = malloc(bufferSize);\
+          memcpy(number, numberBuffer, sizeof(numberBuffer));\
+        }\
       else\
-	number = realloc(number, bufferSize);\
+        {\
+          number = realloc(number, bufferSize);\
+        }\
     }\
-    number[parsedSize++] = (char)x; } while (0)
+  number[parsedSize++] = (char)x; } while (0)
   // JSON numbers must start with a - or a digit
   if (!(c == '-' || isdigit(c)))
     {
@@ -508,6 +513,8 @@ parseNumber(ParserState *state)
               free(number);
               number = numberBuffer;
             }
+            parseError(state);
+            return nil;
         }
       BUFFER(c);
       while (isdigit(c = consumeChar(state)))
@@ -567,7 +574,10 @@ parseArray(ParserState *state)
     {
       if (NO == [array makeImmutable])
         {
+	  id	a = array;
+
           array = [array copy];
+	  RELEASE(a);
         }
     }
   return array;
@@ -631,7 +641,10 @@ parseObject(ParserState *state)
     {
       if (NO == [dict makeImmutable])
         {
+	  id	d = dict;
+
           dict = [dict copy];
+	  RELEASE(d);
         }
     }
   return dict;

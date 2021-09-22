@@ -12,12 +12,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    $Date: 2010-09-18 16:09:58 +0100 (Sat, 18 Sep 2010) $ $Revision: 31371 $
    */
@@ -27,7 +27,11 @@
 #import "common.h"
 
 #if GS_USE_ICU == 1
-#include "unicode/uregex.h"
+#if defined(HAVE_UNICODE_UREGEX_H)
+#include <unicode/uregex.h>
+#elif defined(HAVE_ICU_H)
+#include <icu.h>
+#endif
 
 /* FIXME It would be nice to use autoconf for checking whether uregex_openUText
  * is defined.  However the naive check using AC_CHECK_FUNCS(uregex_openUText)

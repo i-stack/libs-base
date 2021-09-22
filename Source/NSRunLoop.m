@@ -18,12 +18,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSRunLoop class reference</title>
    $Date$ $Revision$
@@ -62,7 +62,7 @@
 #include <math.h>
 #include <time.h>
 
-#if HAVE_LIBDISPATCH_RUNLOOP
+#if GS_USE_LIBDISPATCH_RUNLOOP
 #  define RL_INTEGRATE_DISPATCH 1
 #  ifdef HAVE_DISPATCH_H
 #    include <dispatch.h>
@@ -74,7 +74,8 @@
 #endif
 
 
-NSString * const NSDefaultRunLoopMode = @"NSDefaultRunLoopMode";
+NSRunLoopMode const NSDefaultRunLoopMode = @"NSDefaultRunLoopMode";
+NSRunLoopMode const NSRunLoopCommonModes = @"NSRunLoopCommonModes";
 
 static NSDate	*theFuture = nil;
 
@@ -393,6 +394,14 @@ static inline BOOL timerInvalidated(NSTimer *t)
 @end
 
 #ifdef RL_INTEGRATE_DISPATCH
+
+#pragma clang diagnostic push
+/* We have no declarations for libdispatch private functions, so we ignore
+ * warnings here, knowing that we are using an undocumented feature which
+ * may go away in later releases (in which case we will use another library)
+ */
+#pragma clang diagnostic ignored "-Wimplicit-function-declaration"
+
 @interface GSMainQueueDrainer : NSObject <RunLoopEvents>
 + (void*) mainQueueFileDescriptor;
 @end
@@ -403,26 +412,29 @@ static inline BOOL timerInvalidated(NSTimer *t)
 #if HAVE_DISPATCH_GET_MAIN_QUEUE_HANDLE_NP
   return (void*)(uintptr_t)dispatch_get_main_queue_handle_np();
 #elif HAVE__DISPATCH_GET_MAIN_QUEUE_HANDLE_4CF
-  return (void*)_dispatch_get_main_queue_handle_4CF();
+  return (void*)(uintptr_t)_dispatch_get_main_queue_handle_4CF();
 #else
 #error libdispatch missing main queue handle function
 #endif
 }
 
 - (void) receivedEvent: (void*)data
-		              type: (RunLoopEventType)type
-		             extra: (void*)extra
-	             forMode: (NSString*)mode
+		  type: (RunLoopEventType)type
+		 extra: (void*)extra
+	       forMode: (NSString*)mode
 {
 #if HAVE_DISPATCH_MAIN_QUEUE_DRAIN_NP
   dispatch_main_queue_drain_np();
 #elif HAVE__DISPATCH_MAIN_QUEUE_CALLBACK_4CF
-  _dispatch_main_queue_callback_4CF(NULL)
+  _dispatch_main_queue_callback_4CF(NULL);
 #else
 #error libdispatch missing main queue callback function
 #endif
 }
 @end
+
+#pragma clang diagnostic pop
+
 #endif
 
 @interface NSRunLoop (Private)
@@ -527,7 +539,7 @@ static inline BOOL timerInvalidated(NSTimer *t)
 	    }
 	  NSEndMapTableEnumeration(&enumerator);
 
-	  /* Finally, fire the requests ands release them.
+	  /* Finally, fire the requests and release them.
 	   */
 	  for (i = 0; i < count; i++)
 	    {
@@ -795,7 +807,11 @@ static inline BOOL timerInvalidated(NSTimer *t)
           GSMainQueueDrainer *drain =
             [NSObject leak: [[GSMainQueueDrainer new] autorelease]];
           [current addEvent: [GSMainQueueDrainer mainQueueFileDescriptor]
+#ifdef _WIN32
+                       type: ET_HANDLE
+#else
                        type: ET_RDESC
+#endif
                     watcher: drain
                     forMode: NSDefaultRunLoopMode];
 
@@ -955,7 +971,7 @@ updateTimer(NSTimer *t, NSDate *d, NSTimeInterval now)
 	{
 	  NSTimeInterval	add;
 
-	  /* Just incrementing the date was insufficieint to bring it to
+	  /* Just incrementing the date was insufficient to bring it to
 	   * the current time, so we must have missed one or more fire
 	   * opportunities, or the fire date has been set on the timer.
 	   * If a fire date long ago has been set and the increment value
@@ -1537,10 +1553,19 @@ updateTimer(NSTimer *t, NSDate *d, NSTimeInterval now)
 	  if (i % 1000 == 0 && i > context->maxPerformers)
 	    {
 	      context->maxPerformers = i;
-              NSLog(@"WARNING ... there are %u performers scheduled"
-                @" in mode %@ of %@\n(Latest: [%@ %@])",
-                i, mode, self, NSStringFromClass([target class]),
-                NSStringFromSelector(aSelector));
+	      if (sel_isEqual(aSelector, @selector(fire)))
+		{
+		  NSLog(@"WARNING ... there are %u performers scheduled"
+		    @" in mode %@ of %@\n(Latest: fires %@)",
+		    i, mode, self, target);
+		}
+	      else
+		{
+		  NSLog(@"WARNING ... there are %u performers scheduled"
+		    @" in mode %@ of %@\n(Latest: [%@ %@])",
+		    i, mode, self, NSStringFromClass([target class]),
+		    NSStringFromSelector(aSelector));
+		}
 	    }
 	}
       RELEASE(item);

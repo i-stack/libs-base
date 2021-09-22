@@ -18,7 +18,7 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    If you are interested in a warranty or support for this source code,
    contact Scott Christley <scottc@net-community.com> for more information.
@@ -26,7 +26,7 @@
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */ 
 
 #ifndef __NSLock_h_GNUSTEP_BASE_INCLUDE
@@ -69,11 +69,12 @@ extern "C" {
  * [NSRecursiveLock], have different restrictions.
  * </p>
  */
+GS_EXPORT_CLASS
 @interface NSLock : NSObject <NSLocking>
 {
 #if	GS_EXPOSE(NSLock)
 @protected
-  gs_mutex_t	_mutex;
+  gs_mutex_public_t	_mutex;
   NSString	*_name;
 #endif
 }
@@ -120,12 +121,13 @@ extern "C" {
 /**
  * NSCondition provides an interface to POSIX condition variables.
  */
+GS_EXPORT_CLASS
 @interface NSCondition : NSObject <NSLocking>
 {
 #if	GS_EXPOSE(NSCondition)
 @protected
-  gs_cond_t	_condition;
-  gs_mutex_t	_mutex;
+  gs_cond_public_t	_condition;
+  gs_mutex_public_t	_mutex;
   NSString	*_name;
 #endif
 }
@@ -170,6 +172,7 @@ extern "C" {
  *  condition is equal to a particular value.  The condition is set on
  *  initialization and whenever the lock is relinquished.
  */
+GS_EXPORT_CLASS
 @interface NSConditionLock : NSObject <NSLocking>
 {
 #if	GS_EXPOSE(NSConditionLock)
@@ -270,11 +273,12 @@ extern "C" {
  * thread must also unlock it (n) times before another thread 
  * can acquire the lock.
  */
+GS_EXPORT_CLASS
 @interface NSRecursiveLock : NSObject <NSLocking>
 {
 #if	GS_EXPOSE(NSRecursiveLock)
 @protected
-  gs_mutex_t	_mutex;
+  gs_mutex_public_t	_mutex;
   NSString      *_name;
 #endif
 }

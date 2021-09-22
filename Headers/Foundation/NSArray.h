@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */
 
 #ifndef __NSArray_h_GNUSTEP_BASE_INCLUDE
@@ -57,6 +57,7 @@ enum
 typedef NSUInteger NSBinarySearchingOptions;
 #endif
 
+GS_EXPORT_CLASS
 @interface GS_GENERIC_CLASS(NSArray, __covariant ElementT) : NSObject
   <NSCoding, NSCopying, NSMutableCopying, NSFastEnumeration>
 
@@ -166,16 +167,14 @@ typedef NSUInteger NSBinarySearchingOptions;
 - (BOOL) writeToFile: (NSString*)path atomically: (BOOL)useAuxiliaryFile;
 #if OS_API_VERSION(GS_API_MACOSX, GS_API_LATEST)
 - (BOOL) writeToURL: (NSURL*)url atomically: (BOOL)useAuxiliaryFile;
-- (GS_GENERIC_TYPE(ElementT)) valueForKey: (NSString*)key;
-- (void) setValue: (GS_GENERIC_TYPE(ElementT))value forKey: (NSString*)key;
+- (id) valueForKey: (NSString*)key;
+- (void) setValue: (id)value forKey: (NSString*)key;
 #endif
 
 #if OS_API_VERSION(MAC_OS_X_VERSION_10_6, GS_API_LATEST)
 
-DEFINE_BLOCK_TYPE(GSEnumeratorBlock, void, GS_GENERIC_TYPE(ElementT),
-  NSUInteger, BOOL*);
-DEFINE_BLOCK_TYPE(GSPredicateBlock, BOOL, GS_GENERIC_TYPE(ElementT),
-  NSUInteger, BOOL*);
+DEFINE_BLOCK_TYPE(GSEnumeratorBlock, void, GS_GENERIC_TYPE(ElementT), NSUInteger, BOOL*);
+DEFINE_BLOCK_TYPE(GSPredicateBlock, BOOL, GS_GENERIC_TYPE(ElementT), NSUInteger, BOOL*);
 /**
  * Enumerate over the collection using the given block.  The first argument is
  * the object and the second is the index in the array.  The final argument is
@@ -302,8 +301,9 @@ DEFINE_BLOCK_TYPE(GSPredicateBlock, BOOL, GS_GENERIC_TYPE(ElementT),
 - (GS_GENERIC_TYPE(ElementT)) objectAtIndexedSubscript: (NSUInteger)anIndex;
 @end
 
-
-@interface GS_GENERIC_CLASS(NSMutableArray, ElementT) : NSArray
+
+GS_EXPORT_CLASS
+@interface GS_GENERIC_CLASS(NSMutableArray, ElementT) : GS_GENERIC_CLASS(NSArray, ElementT)
 
 + (instancetype) arrayWithCapacity: (NSUInteger)numItems;
 

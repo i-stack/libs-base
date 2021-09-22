@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #import "common.h"
@@ -27,29 +27,6 @@
 #define	EXPOSE_NSURLProtectionSpace_IVARS	1
 #import "GSURLPrivate.h"
 #import "GNUstepBase/NSURL+GNUstepBase.h"
-
-NSString * const NSURLProtectionSpaceFTPProxy = @"ftp";	
-NSString * const NSURLProtectionSpaceHTTPProxy = @"http";
-NSString * const NSURLProtectionSpaceHTTPSProxy = @"https";
-NSString * const NSURLProtectionSpaceSOCKSProxy = @"SOCKS";
-NSString * const NSURLAuthenticationMethodDefault
-  = @"NSURLAuthenticationMethodDefault";
-NSString * const NSURLAuthenticationMethodHTMLForm
-  = @"NSURLAuthenticationMethodHTMLForm";
-NSString * const NSURLAuthenticationMethodHTTPBasic
-  = @"NSURLAuthenticationMethodHTTPBasic";
-NSString * const NSURLAuthenticationMethodHTTPDigest
-  = @"NSURLAuthenticationMethodHTTPDigest";
-
-NSString * const NSURLAuthenticationMethodNTLM
-  = @"NSURLAuthenticationMethodNTLM";
-
-NSString * const NSURLAuthenticationMethodNegotiate
-  = @"NSURLAuthenticationMethodNegotiate";
-NSString * const NSURLAuthenticationMethodClientCertificate
-  = @"NSURLAuthenticationMethodClientCertificate";
-NSString * const NSURLAuthenticationMethodServerTrust
-  = @"NSURLAuthenticationMethodServerTrust";
 
 // Internal data storage
 typedef struct {

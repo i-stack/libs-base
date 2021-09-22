@@ -14,15 +14,19 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #import "common.h"
+
+#if	GS_HAVE_NSURLSESSION
+#import <Foundation/NSURLSession.h>
+#endif
 
 #define	EXPOSE_NSURLCache_IVARS	1
 #import "GSURLPrivate.h"
@@ -214,4 +218,28 @@ static NSURLCache	*shared = nil;
 }
 
 @end
+
+#if	GS_HAVE_NSURLSESSION
+@implementation NSURLCache (NSURLSessionTaskAdditions)
+
+- (void) storeCachedResponse: (NSCachedURLResponse*)cachedResponse 
+                 forDataTask: (NSURLSessionDataTask*)dataTask
+{
+  [self storeCachedResponse: cachedResponse 
+                 forRequest: [dataTask currentRequest]];
+}
+
+- (NSCachedURLResponse*) cachedResponseForDataTask:
+  (NSURLSessionDataTask*)dataTask 
+{
+  return [self cachedResponseForRequest: [dataTask currentRequest]];
+}
+
+- (void) removeCachedResponseForDataTask: (NSURLSessionDataTask*)dataTask
+{
+  [self removeCachedResponseForRequest: [dataTask currentRequest]];
+}
+
+@end
+#endif
 

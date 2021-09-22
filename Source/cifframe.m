@@ -15,12 +15,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */
 
 #import "common.h"
@@ -532,7 +532,7 @@ cifframe_type(const char *typePtr, const char **advance)
 
     case _C_VOID: ftype = &ffi_type_void;
       break;
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
     case _C_BOOL: ftype = &ffi_type_uchar;
       break;
 #endif

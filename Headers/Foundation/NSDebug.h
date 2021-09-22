@@ -1,5 +1,5 @@
 /* Interface to debugging utilities for GNUStep and OpenStep
-   Copyright (C) 1997,1999 Free Software Foundation, Inc.
+   Copyright (C) 1997-2020 Free Software Foundation, Inc.
 
    Written by:  Richard Frith-Macdonald <richard@brainstorm.co.uk>
    Date: August 1997
@@ -16,12 +16,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */
 
 #ifndef __NSDebug_h_GNUSTEP_BASE_INCLUDE
@@ -44,6 +44,35 @@
 extern "C" {
 #endif
 
+/** Protocol for a delegate, set as an extension in some classes, to handle
+ * debug logging of low level I/O.  The rationale for this protocol is that
+ * on occasion debug logging may be required, but the data being logged may
+ * contain sensitive information which should not be writtent to file.  In
+ * that situation, the delegate may filter/mask the sensitive information
+ * from the logs by taking over the simpel writing to stderr that the inbuilt
+ * debug logging provides.
+ */ 
+@protocol GSLogDelegate <NSObject>
+/** Method sent to the delegate to ask it to log a chunk of data that
+ * has been read.  The delegate should return YES if it has handled
+ * the logging, NO if it wants the default mechanism to be used.<br />
+ * The handle is the object which is performing the read operation.
+ */
+- (BOOL) getBytes: (const uint8_t*)bytes
+         ofLength: (NSUInteger)length
+         byHandle: (NSObject*)handle;
+
+/** Method sent to the delegate to ask it to log a chunk of data that
+ * has been written (or is immediately going to be written).
+ * The delegate should return YES if it has handled the logging,
+ * NO if it wants the default logging mechanism to be used.<br />
+ * The handle is the object which is performing the write operation.
+ */
+- (BOOL) putBytes: (const uint8_t*)bytes
+         ofLength: (NSUInteger)length
+         byHandle: (NSObject*)handle;
+@end
+
 /*
  *	Functions for debugging object allocation/deallocation
  *
@@ -53,6 +82,7 @@ extern "C" {
  *
  *	Public functions:
  *	GSDebugAllocationActive()	
+ *	GSDebugAllocationBytes()	
  *	GSDebugAllocationCount()	
  *      GSDebugAllocationTotal()
  *      GSDebugAllocationPeak()
@@ -99,6 +129,16 @@ GS_EXPORT void		GSDebugAllocationRemove(Class c, id o);
  * your application has allocated.
  */
 GS_EXPORT BOOL		GSDebugAllocationActive(BOOL active);
+
+/**
+ * This function activates or deactivates byte counting for allocation.<br />
+ * Returns the previous state.<br />
+ * You may call this function to activate additional checks to see how
+ * much memory is allocated to hold each object allocated.  When this is
+ * enabled, listing the allocated objects will also list the number of bytes
+ * of heap memory allocated to hold the objects.<br />
+ */
+GS_EXPORT BOOL		GSDebugAllocationBytes(BOOL active);
 
 /**
  * <p>

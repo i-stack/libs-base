@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    AutogsdocSource: NSMetadata.m
 */ 
@@ -38,15 +38,6 @@
 #import "Foundation/NSPredicate.h"
 #import "Foundation/NSString.h"
 #import "Foundation/NSTimer.h"
-
-// Metadata item constants...
-NSString * const NSMetadataItemFSNameKey = @"NSMetadataItemFSNameKey";
-NSString * const NSMetadataItemDisplayNameKey = @"NSMetadataItemDisplayNameKey";
-NSString * const NSMetadataItemURLKey = @"NSMetadataItemURLKey";
-NSString * const NSMetadataItemPathKey = @"NSMetadataItemPathKey";
-NSString * const NSMetadataItemFSSizeKey = @"NSMetadataItemFSSizeKey";
-NSString * const NSMetadataItemFSCreationDateKey = @"NSMetadataItemFSCreationDateKey";
-NSString * const NSMetadataItemFSContentChangeDateKey = @"NSMetadataItemFSContentChangeDateKey";
 
 @implementation NSMetadataItem
 
@@ -94,27 +85,6 @@ NSString * const NSMetadataItemFSContentChangeDateKey = @"NSMetadataItemFSConten
 }
 
 @end
-
-// Metdata Query Constants...
-NSString * const NSMetadataQueryUserHomeScope
-  = @"NSMetadataQueryUserHomeScope";
-NSString * const NSMetadataQueryLocalComputerScope
-  = @"NSMetadataQueryLocalComputerScope";
-NSString * const NSMetadataQueryNetworkScope
-  = @"NSMetadataQueryNetworkScope";
-NSString * const NSMetadataQueryUbiquitousDocumentsScope
-  = @"NSMetadataQueryUbiquitousDocumentsScope";
-NSString * const NSMetadataQueryUbiquitousDataScope
-  = @"NSMetadataQueryUbiquitousDataScope";
-
-NSString * const NSMetadataQueryDidFinishGatheringNotification
-  = @"NSMetadataQueryDidFinishGatheringNotification";
-NSString * const NSMetadataQueryDidStartGatheringNotification
-  = @"NSMetadataQueryDidStartGatheringNotification";
-NSString * const NSMetadataQueryDidUpdateNotification
-  = @"NSMetadataQueryDidUpdateNotification";
-NSString * const NSMetadataQueryGatheringProgressNotification
-  = @"NSMetadataQueryGatheringProgressNotification";
 
 @interface	NSMetadataQueryInternal : NSObject
 {

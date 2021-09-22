@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    $Date$ $Revision$
 */
@@ -30,6 +30,7 @@
 #import "Foundation/NSEnumerator.h"
 #import "Foundation/NSException.h"
 #import "Foundation/NSHashTable.h"
+#import "Foundation/NSIndexSet.h"
 #import "Foundation/NSKeyValueCoding.h"
 #import "Foundation/NSKeyValueObserving.h"
 #import "Foundation/NSLock.h"
@@ -66,12 +67,6 @@
  * those from a template class, and then overrides any setter methods
  * with a another generic setter.
  */
-
-NSString *const NSKeyValueChangeIndexesKey = @"indexes";
-NSString *const NSKeyValueChangeKindKey = @"kind";
-NSString *const NSKeyValueChangeNewKey = @"new";
-NSString *const NSKeyValueChangeOldKey = @"old";
-NSString *const NSKeyValueChangeNotificationIsPriorKey = @"notificationIsPrior";
 
 static NSRecursiveLock	*kvoLock = nil;
 static NSMapTable	*classTable = 0;
@@ -443,6 +438,11 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
   NSString		*superName;
   NSString		*name;
 
+  if (nil == (self = [super init]))
+    {
+      return nil;
+    }
+
   if ([aClass instanceMethodForSelector: @selector(takeValue:forKey:)]
     != [NSObject instanceMethodForSelector: @selector(takeValue:forKey:)])
     {
@@ -573,7 +573,7 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
                 imp = [[GSKVOSetter class]
                   instanceMethodForSelector: @selector(setterDouble:)];
                 break;
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
               case _C_BOOL:
                 imp = [[GSKVOSetter class]
                   instanceMethodForSelector: @selector(setterChar:)];
@@ -1297,8 +1297,13 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
             withTarget: (id)aTarget
                context: (void *)context
 {
-  NSString * remainingKeyPath;
-  NSRange dot;
+  NSString	*remainingKeyPath;
+  NSRange 	dot;
+
+  if (nil == (self = [super init]))
+    {
+      return nil;
+    }
 
   target = aTarget;
   keyPathToForward = [keyPath copy];
@@ -1484,6 +1489,7 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
   NSRange               dot;
 
   setup();
+
   [kvoLock lock];
 
   // Use the original class
@@ -1579,7 +1585,19 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
 	     options: (NSKeyValueObservingOptions)options
 	     context: (void*)aContext
 {
-  [self notImplemented: _cmd];
+  NSUInteger i = [indexes firstIndex];
+
+  while (i != NSNotFound)
+    {
+      NSObject *elem = [self objectAtIndex: i];
+
+      [elem addObserver: anObserver
+             forKeyPath: aPath
+                options: options
+                context: aContext];
+
+      i = [indexes indexGreaterThanIndex: i];
+    }
 }
 
 - (void) removeObserver: (NSObject*)anObserver forKeyPath: (NSString*)aPath
@@ -1593,7 +1611,17 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
    fromObjectsAtIndexes: (NSIndexSet*)indexes
 	     forKeyPath: (NSString*)aPath
 {
-  [self notImplemented: _cmd];
+  NSUInteger i = [indexes firstIndex];
+
+  while (i != NSNotFound)
+    {
+      NSObject *elem = [self objectAtIndex: i];
+
+      [elem removeObserver: anObserver
+                forKeyPath: aPath];
+
+      i = [indexes indexGreaterThanIndex: i];
+    }
 }
 
 @end
@@ -1868,7 +1896,9 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
             {
               set = [self valueForKey: aKey];
             }
-          [pathInfo->change setValue: [set mutableCopy] forKey: @"oldSet"];
+	  set = [set mutableCopy];
+          [pathInfo->change setValue: set forKey: @"oldSet"];
+	  RELEASE(set);
           [pathInfo notifyForKey: aKey ofInstance: [info instance] prior: YES];
         }
       [info unlock];
@@ -1898,7 +1928,7 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
           NSMutableSet  *oldSet;
           id            set = objects;
 
-          oldSet = [pathInfo->change valueForKey: @"oldSet"];
+          oldSet = RETAIN([pathInfo->change valueForKey: @"oldSet"]);
           if (nil == set)
             {
               set = [self valueForKey: aKey];
@@ -1914,6 +1944,7 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
                         forKey: NSKeyValueChangeKindKey];
               [pathInfo->change setValue: set
                                   forKey: NSKeyValueChangeNewKey];
+	      RELEASE(set);
             }
           else if (mutationKind == NSKeyValueMinusSetMutation
             || mutationKind == NSKeyValueIntersectSetMutation)
@@ -1941,8 +1972,10 @@ cifframe_callback(ffi_cif *cif, void *retp, void **args, void *user)
                                   forKey: NSKeyValueChangeOldKey];
               [pathInfo->change setValue: new
                                   forKey: NSKeyValueChangeNewKey];
+	      RELEASE(old);
+	      RELEASE(new);
             }
-
+	  RELEASE(oldSet);
           [pathInfo notifyForKey: aKey ofInstance: [info instance] prior: NO];
         }
       if (pathInfo->recursion > 0)

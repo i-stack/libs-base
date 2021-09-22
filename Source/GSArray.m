@@ -15,12 +15,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    $Date$ $Revision$
    */
@@ -72,6 +72,18 @@ static Class	GSInlineArrayClass;
 @end
 
 @implementation GSArray
+
+- (NSUInteger) sizeOfContentExcluding: (NSHashTable*)exclude
+{
+  NSUInteger	size = _count * sizeof(id);
+  NSUInteger	index = _count;
+
+  while (index-- > 0)
+    {
+      size += [_contents_array[index] sizeInBytesExcluding: exclude];
+    }
+  return size + [super sizeOfContentExcluding: exclude];
+}
 
 - (void) _raiseRangeExceptionWithIndex: (NSUInteger)index from: (SEL)sel
 {
@@ -420,6 +432,13 @@ static Class	GSInlineArrayClass;
 @end
 
 @implementation GSMutableArray
+
+- (NSUInteger) sizeOfContentExcluding: (NSHashTable*)exclude
+{
+  /* Can't safely calculate for mutable object; just buffer size
+   */
+  return _capacity * sizeof(void*);
+}
 
 + (void) initialize
 {
@@ -938,22 +957,6 @@ static Class	GSInlineArrayClass;
   return count;
 }
 
-- (NSUInteger) sizeInBytesExcluding: (NSHashTable*)exclude
-{
-  NSUInteger	size = GSPrivateMemorySize(self, exclude);
-
-  if (size > 0)
-    {
-      NSUInteger	count = _count;
-
-      size += _capacity*sizeof(void*);
-      while (count-- > 0)
-	{
-	  size += [_contents_array[count] sizeInBytesExcluding: exclude];
-	}
-    }
-  return size;
-}
 @end
 
 

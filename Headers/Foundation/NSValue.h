@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #ifndef __NSValue_h_GNUSTEP_BASE_INCLUDE
@@ -45,6 +45,7 @@ extern "C" {
  * be careful this does not get freed until after the <code>NSValue</code> is
  * no longer used.
  */
+GS_EXPORT_CLASS
 @interface NSValue : NSObject <NSCopying, NSCoding>
 
 // Allocating and Initializing 
@@ -173,6 +174,7 @@ extern "C" {
  * and accessing as any C primitive numeric type.  On access, the value will
  * be type-converted if necessary, using standard C conversion rules.
  */
+GS_EXPORT_CLASS
 @interface NSNumber : NSValue <NSCopying,NSCoding>
 
 // Allocating and Initializing

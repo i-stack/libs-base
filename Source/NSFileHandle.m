@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSFileHandle class reference</title>
    $Date$ $Revision$
@@ -32,6 +32,7 @@
 #import "Foundation/NSHost.h"
 #import "Foundation/NSFileHandle.h"
 #import "Foundation/NSPathUtilities.h"
+#import "Foundation/NSURL.h"
 #import "GNUstepBase/GSTLS.h"
 #import "GNUstepBase/NSString+GNUstepBase.h"
 #import "GSPrivate.h"
@@ -41,23 +42,11 @@
 #define	EXPOSE_GSFileHandle_IVARS	1
 #import "GSFileHandle.h"
 
-// GNUstep Notification names
-
-NSString * const GSFileHandleConnectCompletionNotification
-  = @"GSFileHandleConnectCompletionNotification";
-NSString * const GSFileHandleWriteCompletionNotification
-  = @"GSFileHandleWriteCompletionNotification";
-
-// GNUstep key for getting error message.
-
-NSString * const GSFileHandleNotificationError
-  = @"GSFileHandleNotificationError";
-
 static Class NSFileHandle_abstract_class = nil;
 static Class NSFileHandle_concrete_class = nil;
 static Class NSFileHandle_ssl_class = nil;
 
-#if     defined(HAVE_GNUTLS) && !defined(_WIN32)
+#if     defined(HAVE_GNUTLS)
 @interface      GSTLSHandle : GSFileHandle
 {
 @public
@@ -66,6 +55,7 @@ static Class NSFileHandle_ssl_class = nil;
 }
 - (void) sslDisconnect;
 - (BOOL) sslHandshakeEstablished: (BOOL*)result outgoing: (BOOL)isOutgoing;
+- (NSDictionary*) sslOptions;
 - (NSString*) sslSetOptions: (NSDictionary*)options;
 @end
 #endif
@@ -92,7 +82,7 @@ static Class NSFileHandle_ssl_class = nil;
     {
       NSFileHandle_abstract_class = self;
       NSFileHandle_concrete_class = [GSFileHandle class];
-#if     defined(HAVE_GNUTLS) && !defined(_WIN32)
+#if     defined(HAVE_GNUTLS) 
       NSFileHandle_ssl_class = [GSTLSHandle class];
 #endif
     }
@@ -195,6 +185,36 @@ static Class NSFileHandle_ssl_class = nil;
   id	o = [self allocWithZone: NSDefaultMallocZone()];
 
   return AUTORELEASE([o initWithNullDevice]);
+}
+
++ (id) fileHandleForReadingFromURL: (NSURL*)url error:(NSError**)error
+{
+  id	o = [self fileHandleForReadingAtPath: [url path]];
+  if (!o && error)
+    {
+      *error = [NSError _last];
+    }
+  return o;
+}
+
++ (id) fileHandleForWritingToURL: (NSURL*)url error:(NSError**)error
+{
+  id	o = [self fileHandleForWritingAtPath: [url path]];
+  if (!o && error)
+    {
+      *error = [NSError _last];
+    }
+  return o;
+}
+
++ (id) fileHandleForUpdatingURL: (NSURL*)url error:(NSError**)error
+{
+  id	o = [self fileHandleForUpdatingAtPath: [url path]];
+  if (!o && error)
+    {
+      *error = [NSError _last];
+    }
+  return o;
 }
 
 /**
@@ -451,35 +471,6 @@ static Class NSFileHandle_ssl_class = nil;
 
 @end
 
-// Keys for accessing userInfo dictionary in notification handlers.
-
-NSString * const NSFileHandleNotificationDataItem
-  = @"NSFileHandleNotificationDataItem";
-NSString * const NSFileHandleNotificationFileHandleItem
-  = @"NSFileHandleNotificationFileHandleItem";
-NSString * const NSFileHandleNotificationMonitorModes
-  = @"NSFileHandleNotificationMonitorModes";
-
-// Notification names
-
-NSString * const NSFileHandleConnectionAcceptedNotification
-  = @"NSFileHandleConnectionAcceptedNotification";
-NSString * const NSFileHandleDataAvailableNotification
-  = @"NSFileHandleDataAvailableNotification";
-NSString * const NSFileHandleReadCompletionNotification
-  = @"NSFileHandleReadCompletionNotification";
-NSString * const NSFileHandleReadToEndOfFileCompletionNotification
-  = @"NSFileHandleReadToEndOfFileCompletionNotification";
-
-// Exceptions
-
-/**
- * An exception used when a file error occurs.
- */
-NSString * const NSFileHandleOperationException
-  = @"NSFileHandleOperationException";
-
-
 // GNUstep class extensions
 
 /**
@@ -853,6 +844,11 @@ NSString * const NSFileHandleOperationException
   return nil;
 }
 
+- (NSDictionary*) sslOptions
+{
+  return nil;
+}
+
 - (NSString*) sslOwner
 {
   return nil;
@@ -865,7 +861,11 @@ NSString * const NSFileHandleOperationException
   NSMutableDictionary   *opts;
   NSString              *err;
 
-  opts = [NSMutableDictionary dictionaryWithCapacity: 3];
+  opts = AUTORELEASE([[self sslOptions] mutableCopy]);
+  if (nil == opts)
+    {
+      opts = [NSMutableDictionary dictionaryWithCapacity: 3];
+    }
   if (nil != certFile)
     {
       [opts setObject: certFile forKey: GSTLSCertificateFile];
@@ -892,7 +892,7 @@ NSString * const NSFileHandleOperationException
 
 @end
 
-#if     defined(HAVE_GNUTLS) &&	!defined(_WIN32)
+#if     defined(HAVE_GNUTLS)
 
 /* Callback to allow the TLS code to pull data from the remote system.
  * If the operation fails, this sets the error number.
@@ -902,15 +902,33 @@ GSTLSHandlePull(gnutls_transport_ptr_t handle, void *buffer, size_t len)
 {
   ssize_t       result = 0;
   GSTLSHandle   *tls = (GSTLSHandle*)handle;
-  int           descriptor = [tls fileDescriptor];
+  int           descriptor = (int)(intptr_t)[tls nativeHandle];
 
-  result = read(descriptor, buffer, len);
+  result = recv(descriptor, buffer, len, 0);
   if (result < 0)
     {
 #if	HAVE_GNUTLS_TRANSPORT_SET_ERRNO
       if (tls->session && tls->session->session)
         {
-          gnutls_transport_set_errno (tls->session->session, errno);
+	  int	e;
+
+#if  defined(_WIN32)
+	  /* For windows, we need to map winsock errors to unix ones that
+	   * gnutls understands.
+	   */
+	  e = WSAGetLastError();
+	  if (WSAEWOULDBLOCK == e)
+	    {
+	      e = EAGAIN;
+	    }
+	  else if (WSAEINTR == e)
+	    {
+	      e = EINTR;
+	    }
+#else
+	  e = errno;
+#endif
+          gnutls_transport_set_errno (tls->session->session, e);
         }
 #endif
     }
@@ -925,15 +943,33 @@ GSTLSHandlePush(gnutls_transport_ptr_t handle, const void *buffer, size_t len)
 {
   ssize_t       result = 0;
   GSTLSHandle   *tls = (GSTLSHandle*)handle;
-  int           descriptor = [tls fileDescriptor];
+  int           descriptor = (int)(intptr_t)[tls nativeHandle];
 
-  result = write(descriptor, buffer, len);
+  result = send(descriptor, buffer, len, 0);
   if (result < 0)
     {
 #if	HAVE_GNUTLS_TRANSPORT_SET_ERRNO
       if (tls->session && tls->session->session)
         {
-          gnutls_transport_set_errno (tls->session->session, errno);
+	  int	e;
+
+#if  defined(_WIN32)
+	  /* For windows, we need to map winsock errors to unix ones that
+	   * gnutls understands.
+	   */
+	  e = WSAGetLastError();
+	  if (WSAEWOULDBLOCK == e)
+	    {
+	      e = EAGAIN;
+	    }
+	  else if (WSAEINTR == e)
+	    {
+	      e = EINTR;
+	    }
+#else
+	  e = errno;
+#endif
+          gnutls_transport_set_errno(tls->session->session, e);
         }
 #endif
     }
@@ -1074,6 +1110,11 @@ GSTLSHandlePush(gnutls_transport_ptr_t handle, const void *buffer, size_t len)
   return [session issuer];
 }
 
+- (NSDictionary*) sslOptions
+{
+  return opts;
+}
+
 - (NSString*) sslOwner
 {
   return [session owner];
@@ -1100,5 +1141,5 @@ GSTLSHandlePush(gnutls_transport_ptr_t handle, const void *buffer, size_t len)
 
 @end
 
-#endif  /* defined(HAVE_GNUTLS) && !defined(_WIN32) */
+#endif  /* defined(HAVE_GNUTLS) */
 

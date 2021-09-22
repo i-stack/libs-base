@@ -450,7 +450,7 @@ GSIMapAddNodeToMap(GSIMapTable map, GSIMapNode node)
 {
   GSIMapBucket	bucket;
 
-  bucket = GSIMapBucketForKey(map, node->key);
+  bucket = GSIMapBucketForKey(map, GSI_MAP_READ_KEY(map, &node->key));
   GSIMapAddNodeToBucket(bucket, node);
   map->nodeCount++;
 }
@@ -543,8 +543,9 @@ GSIMapRemangleBuckets(GSIMapTable map,
 		  GSIMapBucket	bkt;
 
 		  GSIMapRemoveNodeFromBucket(old_buckets, node);
-		  bkt = GSIMapPickBucket(GSI_MAP_HASH(map, node->key),
-		    new_buckets, new_bucketCount);
+		  bkt = GSIMapPickBucket(GSI_MAP_HASH(map,
+		    GSI_MAP_READ_KEY(map, &node->key)),
+		      new_buckets, new_bucketCount);
 		  GSIMapAddNodeToBucket(bkt, node);
 		}
 	    }
@@ -561,8 +562,9 @@ GSIMapRemangleBuckets(GSIMapTable map,
 	  GSIMapBucket	bkt;
 
 	  GSIMapRemoveNodeFromBucket(old_buckets, node);
-	  bkt = GSIMapPickBucket(GSI_MAP_HASH(map, node->key),
-	    new_buckets, new_bucketCount);
+	  bkt = GSIMapPickBucket(GSI_MAP_HASH(map,
+	    GSI_MAP_READ_KEY(map, &node->key)),
+	      new_buckets, new_bucketCount);
 	  GSIMapAddNodeToBucket(bkt, node);
 	}
       old_buckets++;
@@ -945,7 +947,7 @@ GSIMapEnumeratorNextNode(GSIMapEnumerator enumerator)
 	{
 	  uintptr_t	bucket = ((_GSIE)enumerator)->bucket;
 
-	  while (next != 0 && next->key.addr == 0)
+	  while (next != 0 && GSI_MAP_NODE_IS_EMPTY(map, next))
 	    {
 	      next = GSIMapRemoveAndFreeNode(map, bucket, next);
 	    }
@@ -961,7 +963,7 @@ GSIMapEnumeratorNextNode(GSIMapEnumerator enumerator)
 	      while (next == 0 && ++bucket < bucketCount)
 		{
 		  next = (map->buckets[bucket]).firstNode;
-		  while (next != 0 && next->key.addr == 0)
+		  while (next != 0 && GSI_MAP_NODE_IS_EMPTY(map, next))
 		    {
 		      next = GSIMapRemoveAndFreeNode(map, bucket, next);
 		    }
@@ -987,23 +989,22 @@ GSIMapEnumeratorNextNode(GSIMapEnumerator enumerator)
  */
 GS_STATIC_INLINE NSUInteger 
 GSIMapCountByEnumeratingWithStateObjectsCount(GSIMapTable map,
-                                              NSFastEnumerationState *state,
-                                              id *stackbuf,
-                                              NSUInteger len)
+  NSFastEnumerationState *state, id *stackbuf, NSUInteger len)
 {
   NSInteger count;
   NSInteger i;
 
-  /* We can store a GSIMapEnumerator inside the extra buffer in state on all
-   * platforms that don't suck beyond belief (i.e. everything except win64),
-   * but we can't on anything where long is 32 bits and pointers are 64 bits,
-   * so we have to construct it here to avoid breaking on that platform.
+  /* We can store a GSIMapEnumerator inside the extra buffer in state, but we
+   * need to handle platforms like Win64 where long is 32 bits and pointers are
+   * 64 bits, so we have to construct it here to avoid breaking on such
+   * platforms.
    */
   struct GSPartMapEnumerator
     {
       GSIMapNode node;
       uintptr_t bucket;
     };
+#define GS_PART_MAP_ENUMERATOR(state) ((struct GSPartMapEnumerator*)(uintptr_t)((state)->extra))
   GSIMapEnumerator_t enumerator;
 
   count = MIN(len, map->nodeCount - state->state);
@@ -1011,13 +1012,13 @@ GSIMapCountByEnumeratingWithStateObjectsCount(GSIMapTable map,
   /* Construct the real enumerator */
   if (0 == state->state)
     {
-        enumerator = GSIMapEnumeratorForMap(map);
+      enumerator = GSIMapEnumeratorForMap(map);
     }
   else
     {
       enumerator.map = map;
-      enumerator.node = ((struct GSPartMapEnumerator*)(state->extra))->node; 
-      enumerator.bucket = ((struct GSPartMapEnumerator*)(state->extra))->bucket;
+      enumerator.node = GS_PART_MAP_ENUMERATOR(state)->node; 
+      enumerator.bucket = GS_PART_MAP_ENUMERATOR(state)->bucket;
     }
   /* Get the next count objects and put them in the stack buffer. */
   for (i = 0; i < count; i++)
@@ -1033,8 +1034,8 @@ GSIMapCountByEnumeratingWithStateObjectsCount(GSIMapTable map,
         }
     }
   /* Store the important bits of the enumerator in the caller. */
-  ((struct GSPartMapEnumerator*)(state->extra))->node = enumerator.node;
-  ((struct GSPartMapEnumerator*)(state->extra))->bucket = enumerator.bucket;
+  GS_PART_MAP_ENUMERATOR(state)->node = enumerator.node;
+  GS_PART_MAP_ENUMERATOR(state)->bucket = enumerator.bucket;
   /* Update the rest of the state. */
   state->state += count;
   state->itemsPtr = stackbuf;

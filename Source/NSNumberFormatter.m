@@ -16,12 +16,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    <title>NSNumberFormatter class reference</title>
    $Date$ $Revision$
@@ -65,6 +65,9 @@
 
 #if	defined(HAVE_UNICODE_UNUM_H)
 # include <unicode/unum.h>
+#endif
+#if defined(HAVE_ICU_H)
+# include <icu.h>
 #endif
 
 #define BUFFER_SIZE 1024
@@ -1100,7 +1103,7 @@ static NSUInteger _defaultBehavior = NSNumberFormatterBehavior10_4;
            * don't think it matters, because we don't bother with anything
            * smaller than int for NSNumbers
 	   */
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
           case _C_BOOL:
             STRING_FROM_NUMBER(unum_format, (int)[anObject boolValue]);
             break;

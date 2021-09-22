@@ -153,7 +153,7 @@ static	errbuf[BUFSIZ];
 #define	MAX_EXTRA	((GDO_NAME_MAX_LEN - 2 * IASIZE)/IASIZE)
 
 #define ROUND(V, A) \
-  ({ typeof(V) __v=(V); typeof(A) __a=(A); \
+  ({ __typeof__(V) __v=(V); __typeof__(A) __a=(A); \
 	 __a*((__v+__a-1)/__a); })
 
 typedef	unsigned char	*uptr;
@@ -413,13 +413,34 @@ is_local_host(struct in_addr a)
 }
 
 static int
+is_probe_host(struct in_addr a)
+{
+  if (plist)
+    {
+      plentry	*p;
+
+      /* Hosts explicitly configured to be probed are ones we treat
+       * as being part of our LAN and therefore trusted.
+       */
+      for (p = plist; p != 0; p = p->next)
+	{
+	  if (a.s_addr == p->addr.s_addr)
+	    {
+	      return 1;
+	    }
+	}
+    }
+  return 0;
+}
+
+static int
 is_local_net(struct in_addr a)
 {
   int	i;
 
   for (i = 0; i < interfaces; i++)
     {
-      if ((mask[i].s_addr && addr[i].s_addr) == (mask[i].s_addr && a.s_addr))
+      if ((mask[i].s_addr & addr[i].s_addr) == (mask[i].s_addr & a.s_addr))
 	{
 	  return 1;
 	}
@@ -490,8 +511,8 @@ delRInfo(int s)
   if (i == _rInfoCount)
     {
       snprintf(ebuf, sizeof(ebuf),
-	"%s requested unallocated RInfo struct (socket %d)",
-	__FUNCTION__, s);
+	"%s requested unallocated RInfo struct (socket %ld)",
+	__FUNCTION__, (long int)s);
       gdomap_log(LOG_ERR);
       return;
     }
@@ -564,8 +585,8 @@ delWInfo(int s)
   if (i == _wInfoCount)
     {
       snprintf(ebuf, sizeof(ebuf),
-	"%s requested unallocated WInfo struct (socket %d)",
-	__FUNCTION__, s);
+	"%s requested unallocated WInfo struct (socket %ld)",
+	__FUNCTION__, (long int)s);
       gdomap_log(LOG_ERR);
       return;
     }
@@ -930,7 +951,7 @@ prb_add(struct in_addr *p)
     {
       return;
     }
-  if (is_local_net(*p) == 0)
+  if (is_local_net(*p) == 0 && is_probe_host(*p) == 0)
     {
       return;
     }
@@ -1170,7 +1191,7 @@ init_iface()
 {
 #if	defined(__MINGW__)
   INTERFACE_INFO InterfaceList[20];
-  uint32_t nBytesReturned;
+  DWORD nBytesReturned;
   int i, countActive, nNumInterfaces;
   SOCKET desc = WSASocket(PF_INET, SOCK_RAW, AF_INET, 0, 0, 0);
 
@@ -1536,7 +1557,7 @@ load_iface(const char* from)
 	}
       if (ptr != buf)
 	{
-	  strcpy(buf, ptr);
+	  memmove(buf, ptr, strlen(ptr) + 1);
 	}
       /*
        *	Strip comments.
@@ -1608,7 +1629,7 @@ load_iface(const char* from)
 	}
       if (ptr != buf)
 	{
-	  strcpy(buf, ptr);
+	  memmove(buf, ptr, strlen(ptr) + 1);
 	}
       /*
        *	Strip comments.
@@ -1766,7 +1787,7 @@ init_ports()
   int		r;
   struct sockaddr_in	sa;
 #if	defined(__MINGW__)
-  uint32_t dummy;
+  DWORD dummy;
 #endif /* __MINGW__ */
 
   /*
@@ -2317,7 +2338,7 @@ handle_accept()
     {
       RInfo		*ri;
 #if	defined(__MINGW__)
-      uint32_t	dummy = 1;
+      DWORD	dummy = 1;
 #else
       int		r;
 #endif /* !__MINGW__ */
@@ -3100,6 +3121,20 @@ handle_request(int desc)
       unsigned int	i;
       unsigned int	j;
 
+      /* See if this is a request from a local process.
+       *
+       * This request is only useful locally.  Do not allow remote
+       * requests for the server list.  Our response can be large,
+       * so it would make a great UDP amplification attack.
+       */
+      if (is_local_host(ri->addr.sin_addr) == 0)
+	{
+	  snprintf(ebuf, sizeof(ebuf), "Illegal attempt to list servers!");
+	  gdomap_log(LOG_ERR);
+	  clear_chan(desc);
+	  return;
+	}
+
       free(wi->buf);
       wi->buf = (char*)calloc(sizeof(uint32_t)
 	+ (prb_used+1)*IASIZE, 1);
@@ -3260,8 +3295,8 @@ handle_request(int desc)
 		    {
 		      continue;
 		    }
-		  if ((mask[i].s_addr && addr[i].s_addr) ==
-			(mask[i].s_addr && ri->addr.sin_addr.s_addr))
+		  if ((mask[i].s_addr & addr[i].s_addr) ==
+			(mask[i].s_addr & ri->addr.sin_addr.s_addr))
 		    {
 		      laddr = addr[i];
 		      memcpy(wbuf, &laddr, IASIZE);
@@ -3724,7 +3759,7 @@ int ptype, struct sockaddr_in *addr, unsigned short *p, uptr *v)
   gdo_req	msg;
   struct sockaddr_in sin;
 #if	defined(__MINGW__)
-  uint32_t dummy;
+  DWORD dummy;
 #endif /* __MINGW__ */
 
   *p = 0;
@@ -3933,7 +3968,7 @@ int ptype, struct sockaddr_in *addr, unsigned short *p, uptr *v)
        */
       ptr = b;
       port = 0;
-      while (ptr < &b[len])
+      while (ptr < (b + len))
 	{
 	  ptr += 2 + ptr[0];
 	  port++;
@@ -4389,6 +4424,135 @@ donames(const char *host)
 }
 
 static void
+doservers(const char *host)
+{
+  struct sockaddr_in	sin;
+  unsigned short	p;
+  unsigned short	num = 0;
+  int			rval;
+  uptr			b;
+  char			*first_dot = 0;
+
+  if (host == 0 || *host == '\0')
+    {
+      /*
+       * If no host name is given, we use the name of the local host.
+       */
+      first_dot = strchr(local_hostname, '.');
+      if (first_dot)
+	{
+	  *first_dot = '\0';
+	}
+      host = local_hostname;
+    }
+
+  memset((char*)&sin, '\0', sizeof(sin));
+  sin.sin_family = AF_INET;
+
+#if	GDOMAP_PORT_OVERRIDE
+  p = htons(GDOMAP_PORT_OVERRIDE);
+#else
+  {
+    struct servent      *sp;
+    /*
+     *	Ensure we have port number to connect to name server.
+     *	The TCP service name 'gdomap' overrides the default port.
+     */
+    if ((sp = getservbyname("gdomap", "tcp")) != 0)
+      {
+        p = sp->s_port;		/* Network byte order.	*/
+      }
+    else
+      {
+        p = htons(GDOMAP_PORT);
+      }
+  }
+#endif
+
+  sin.sin_port = p;
+ 
+#if     HAVE_GETADDRINFO
+  {
+    struct addrinfo       hints;
+    struct addrinfo       *info;
+    int                   err;
+
+    memset(&hints, '\0', sizeof(hints));
+    hints.ai_family = AF_INET;
+
+    if ((err = getaddrinfo(host, NULL, &hints, &info) != 0) && first_dot != 0)
+      {
+        *first_dot = '.';
+        err = getaddrinfo(host, NULL, &hints, &info);
+      }
+    if (err != 0)
+    {
+        snprintf(ebuf, sizeof(ebuf),
+          "getaddrinfo('%s') failed: %s", host, gai_strerror(err));
+        gdomap_log(LOG_ERR);
+        return;
+    }
+    sin.sin_addr = ((struct sockaddr_in *)info->ai_addr)->sin_addr;
+    freeaddrinfo(info);
+  }
+#else
+  {
+    struct hostent        *hp;
+
+    if ((hp = gethostbyname(host)) == 0 && first_dot != 0)
+      {
+        *first_dot = '.';
+        hp = gethostbyname(host);
+      }
+    if (hp == 0)
+      {
+        snprintf(ebuf, sizeof(ebuf),
+          "gethostbyname('%s') failed: %s", host, strerror(errno));
+        gdomap_log(LOG_ERR);
+        return;
+      }
+    if (hp->h_addrtype != AF_INET)
+      {
+        snprintf(ebuf, sizeof(ebuf),
+          "non-internet network not supported for %s", host);
+        gdomap_log(LOG_ERR);
+        return;
+      }
+
+    memcpy(&sin.sin_addr, hp->h_addr, hp->h_length);
+  }
+#endif
+
+  rval = tryHost(GDO_SERVERS, 0, 0, 0, &sin, &num, (uptr*)&b);
+  if (rval != 0)
+    {
+      snprintf(ebuf, sizeof(ebuf), "failed to contact gdomap on %s(%s) - %s",
+        local_hostname, inet_ntoa(sin.sin_addr), strerror(errno));
+      gdomap_log(LOG_ERR);
+      return;
+    }
+  if (num == 0)
+    {
+      snprintf(ebuf, sizeof(ebuf), "No servers currently known to gdomap");
+      gdomap_log(LOG_INFO);
+    }
+  else
+    {
+      struct in_addr	*p = (struct in_addr*)(b + 4);
+
+      snprintf(ebuf, sizeof(ebuf), "Known servers are -");
+      gdomap_log(LOG_INFO);
+      while (num-- > 0)
+	{
+	  snprintf(ebuf, sizeof(ebuf), "  %s", inet_ntoa(*p));
+	  gdomap_log(LOG_INFO);
+	  p++;
+	}
+    }
+  free(b);
+}
+
+static void
 doregister(const char *name, int port, int ptype)
 {
   struct sockaddr_in	sin;
@@ -4463,6 +4627,7 @@ static void do_help(int argc, char **argv, char *options)
   printf("-N		list all names registered on host\n");
   printf("-P number	port number required for R option.\n");
   printf("-R name		register name locally then quit.\n");
+  printf("-S		list all gdomap servers known to host\n");
   printf("-T type		port type for L, R and U options -\n");
   printf("		tcp_gdo, udp_gdo,\n");
   printf("		tcp_foreign, udp_foreign.\n");
@@ -4579,9 +4744,9 @@ main(int argc, char** argv)
 {
   extern char	*optarg;
 #if	defined(__MINGW__)
-  char	*options = "-CHI:L:M:NP:R:T:U:a:bc:dfi:p";
+  char	*options = "-CHI:L:M:NP:R:ST:U:a:bc:dfi:p";
 #else
-  char	*options = "-CHI:L:M:NP:R:T:U:a:bc:dfi:j:p";
+  char	*options = "-CHI:L:M:NP:R:ST:U:a:bc:dfi:j:p";
   const char    *jail = 0;
 #endif
   int		c;
@@ -4590,6 +4755,7 @@ main(int argc, char** argv)
   const char	*machine = 0;
   const char	*lookupf = 0;
   int		donamesf = 0;
+  int		doserversf = 0;
 
 #if	defined(__MINGW__)
   WORD wVersionRequested;
@@ -4711,6 +4877,10 @@ printf(
 	    doregister(optarg, port, ptype);
 	    exit(EXIT_SUCCESS);
 
+	  case 'S':
+	    doserversf = 1;
+	    break;
+
 	  case 'T':
 	    if (strcmp(optarg, "tcp_gdo") == 0)
 	      {
@@ -4798,7 +4968,7 @@ printf(
 		    }
 		  if (ptr != buf)
 		    {
-		      strcpy(buf, ptr);
+		      memmove(buf, ptr, strlen(ptr) + 1);
 		    }
 		  /*
 		   *	Strip comments.
@@ -4923,11 +5093,15 @@ printf(
 	    exit(EXIT_SUCCESS);
 	}
     }
-  if (donamesf || lookupf)
+  if (donamesf || doserversf || lookupf)
     {
       if (donamesf)
 	{
 	  donames(machine);
+	}
+      if (doserversf)
+	{
+	  doservers(machine);
 	}
       if (lookupf)
 	{

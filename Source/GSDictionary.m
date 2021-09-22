@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */
 
 
@@ -60,7 +60,7 @@
 {
 @public
   GSIMapTable_t	map;
-  NSUInteger _version;
+  unsigned long	_version;
 }
 @end
 
@@ -79,6 +79,22 @@
 
 static SEL	nxtSel;
 static SEL	objSel;
+
+- (NSUInteger) sizeOfContentExcluding: (NSHashTable*)exclude
+{
+  NSUInteger    	size = GSIMapSize(&map) - sizeof(GSIMapTable);
+  GSIMapEnumerator_t	enumerator = GSIMapEnumeratorForMap(&map);
+  GSIMapNode		node = GSIMapEnumeratorNextNode(&enumerator);
+
+  while (node != 0)
+    {
+      size += [node->key.obj sizeInBytesExcluding: exclude];
+      size += [node->value.obj sizeInBytesExcluding: exclude];
+      node = GSIMapEnumeratorNextNode(&enumerator);
+    }
+  GSIMapEndEnumerator(&enumerator);
+  return size + [super sizeOfContentExcluding: exclude];
+}
 
 + (void) initialize
 {
@@ -356,30 +372,16 @@ static SEL	objSel;
     (&map, state, stackbuf, len);
 }
 
-- (NSUInteger) sizeInBytesExcluding: (NSHashTable*)exclude
-{
-  NSUInteger	size = GSPrivateMemorySize(self, exclude);
-
-  if (size > 0)
-    {
-      GSIMapEnumerator_t	enumerator = GSIMapEnumeratorForMap(&map);
-      GSIMapNode 		node = GSIMapEnumeratorNextNode(&enumerator);
-
-      size += GSIMapSize(&map) - sizeof(map);
-      while (node != 0)
-        {
-          size += [node->key.obj sizeInBytesExcluding: exclude];
-          size += [node->value.obj sizeInBytesExcluding: exclude];
-          node = GSIMapEnumeratorNextNode(&enumerator);
-        }
-      GSIMapEndEnumerator(&enumerator);
-    }
-  return size;
-}
-
 @end
 
 @implementation GSMutableDictionary
+
+- (NSUInteger) sizeOfContentExcluding: (NSHashTable*)exclude
+{
+  /* Can't safely calculate for mutable object; just buffer size
+   */
+  return map.nodeCount * sizeof(GSIMapNode);
+}
 
 + (void) initialize
 {
@@ -424,7 +426,6 @@ static SEL	objSel;
 {
   GSIMapNode	node;
 
-  _version++;
   if (aKey == nil)
     {
       NSException	*e;
@@ -446,6 +447,7 @@ static SEL	objSel;
 				userInfo: self];
       [e raise];
     }
+  _version++;
   node = GSIMapNodeForKey(&map, (GSIMapKey)aKey);
   if (node)
     {
@@ -483,7 +485,7 @@ static SEL	objSel;
 				   objects: (__unsafe_unretained id[])stackbuf
 				     count: (NSUInteger)len
 {
-  state->mutationsPtr = (unsigned long *)&_version;
+  state->mutationsPtr = &_version;
   return GSIMapCountByEnumeratingWithStateObjectsCount
     (&map, state, stackbuf, len);
 }

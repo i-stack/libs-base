@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    AutogsdocSource: NSKeyedArchiver.m
    AutogsdocSource: NSKeyedUnarchiver.m
@@ -50,6 +50,7 @@ extern "C" {
  *  <code>...forKey:</code> [NSCoder] methods, which provide for more robust
  *  forwards and backwards compatibility.
  */
+GS_EXPORT_CLASS
 @interface NSKeyedArchiver : NSCoder
 {
 #if	GS_EXPOSE(NSKeyedArchiver)
@@ -70,6 +71,7 @@ extern "C" {
   NSMutableDictionary	*_enc;	/* Object being encoded.	*/
   NSMutableArray	*_obj;	/* Array of objects.		*/
   NSPropertyListFormat	_format;
+  BOOL _requiresSecureCoding;
 #endif
 #if     GS_NONFRAGILE
 #else
@@ -86,6 +88,18 @@ extern "C" {
  * Encodes anObject and returns the resulting data object.
  */
 + (NSData*) archivedDataWithRootObject: (id)anObject;
+
+
+#if OS_API_VERSION(MAC_OS_X_VERSION_10_13,GS_API_LATEST)
+/**
+ * Encodes anObject and returns the resulting data object.  Allows
+ * secure coding if specified.  Returns an error if an object 
+ * violates secure coding rules.
+ */
++ (NSData *) archivedDataWithRootObject: (id)anObject
+                  requiringSecureCoding: (BOOL)requiresSecureCoding
+                                  error: (NSError **)error;
+#endif
 
 /**
  * Encodes anObject and writes the resulting data ti aPath.
@@ -109,6 +123,18 @@ extern "C" {
  */
 + (void) setClassName: (NSString*)aString forClass: (Class)aClass;
 
+/**
+ * Returns whether the current instance of the archiver needs secure
+ * coding.
+ */
+- (BOOL) requiresSecureCoding;
+
+/**
+ * Sets whether the current instance of the archiver needs secure
+ * coding.
+ */
+- (void) setRequiresSecureCoding: (BOOL)flag;
+  
 /**
  * Returns any mapping for the name of aClass which was previously set
  * for the receiver using the -setClassName:forClass: method.<br />
@@ -225,6 +251,7 @@ extern "C" {
  *  <code>...forKey:</code> [NSCoder] methods, which provide for more robust
  *  forwards and backwards compatibility.
  */
+GS_EXPORT_CLASS
 @interface NSKeyedUnarchiver : NSCoder
 {
 #if	GS_EXPOSE(NSKeyedUnarchiver)
@@ -245,6 +272,7 @@ extern "C" {
 #undef	GSIArray
 #endif
   NSZone	*_zone;		/* Zone for allocating objs.	*/
+  BOOL          _requiresSecureCoding;
 #endif
 #if     GS_NONFRAGILE
 #else
@@ -284,13 +312,25 @@ extern "C" {
 + (id) unarchiveObjectWithFile: (NSString*)aPath;
 
 /**
+ * Returns whether the current instance of the archiver needs secure
+ * coding.
+ */
+- (BOOL) requiresSecureCoding;
+
+/**
+ * Sets whether the current instance of the archiver needs secure
+ * coding.
+ */
+- (void) setRequiresSecureCoding: (BOOL)flag;
+  
+/**
  * Returns class substituted for class name specified by aString when
  * encountered in the archive being decoded from, or nil if there is no
  * specific translation mapping.  The class as a whole also maintains a
  * translation map, which is searched on decoding if no match found here.
  */
 - (Class) classForClassName: (NSString*)aString;
-
+  
 /**
  * Sets class substituted for class name specified by aString when
  * encountered in the archive being decoded from, or nil if there is no

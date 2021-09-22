@@ -15,12 +15,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 */
 
 #import "common.h"
@@ -108,6 +108,7 @@ static NSString	*httpVersion = @"1.1";
   BOOL			debug;
   BOOL			keepalive;
   BOOL			returnAll;
+  id<GSLogDelegate>     ioDelegate;
   unsigned char		challenged;
   NSFileHandle          *sock;
   NSTimeInterval        cacheAge;
@@ -135,6 +136,7 @@ static NSString	*httpVersion = @"1.1";
 }
 + (void) setMaxCached: (NSUInteger)limit;
 - (void) _tryLoadInBackground: (NSURL*)fromURL;
+- (id<GSLogDelegate>) setDebugLogDelegate: (id<GSLogDelegate>)d;
 @end
 
 /**
@@ -328,9 +330,7 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
       [[NSObject leakAt: &urlOrder] release];
       urlLock = [NSLock new];
       [[NSObject leakAt: &urlLock] release];
-#if	!defined(_WIN32)
       sslClass = [NSFileHandle sslClass];
-#endif
     }
 }
 
@@ -601,7 +601,15 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
   /*
    * Send request to server.
    */
-  if (YES == debug) debugWrite(self, buf);
+  if (debug)
+    {
+      if (NO == [ioDelegate putBytes: [buf bytes]
+                            ofLength: [buf length]
+                            byHandle: self])
+        {
+          debugWrite(self, buf);
+        }
+    }
   [sock writeInBackgroundAndNotify: buf];
   RELEASE(buf);
   RELEASE(s);
@@ -621,8 +629,16 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
   if (debug)
     NSLog(@"%@ %p %s", NSStringFromSelector(_cmd), self, keepalive?"K":"");
   d = [dict objectForKey: NSFileHandleNotificationDataItem];
-  if (YES == debug) debugRead(self, d);
   readCount = [d length];
+  if (debug)
+    {
+      if (NO == [ioDelegate getBytes: [d bytes]
+                            ofLength: readCount
+                            byHandle: self])
+        {
+          debugRead(self, d);
+        }
+    }
 
   if (connectionState == idle)
     {
@@ -631,11 +647,32 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
        * it should just be the connection being closed by the other
        * end because of a timeout etc.
        */
-      if (YES == debug && [d length] != 0)
+      if (debug)
 	{
-	  NSLog(@"%@ %p %s Unexpected data (%*.*s) from remote!",
-	    NSStringFromSelector(_cmd), self, keepalive?"K":"",
-	    (int)[d length], (int)[d length], [d bytes]);
+          NSUInteger    length = [d length];
+
+          if (length > 0)
+            {
+              if (nil == ioDelegate)
+                {
+                  NSLog(@"%@ %p %s Unexpected data (%*.*s) from remote!",
+                    NSStringFromSelector(_cmd), self, keepalive?"K":"",
+                    (int)[d length], (int)[d length], (char*)[d bytes]);
+                }
+              else
+                {
+                  NSLog(@"%@ %p %s Unexpected data from remote!",
+                    NSStringFromSelector(_cmd), self, keepalive?"K":"");
+                  if (NO == [ioDelegate getBytes: [d bytes]
+                                        ofLength: length
+                                        byHandle: self])
+                    {
+                      NSLog(@"%@ %p %s (%*.*s)",
+                        NSStringFromSelector(_cmd), self, keepalive?"K":"",
+                        (int)[d length], (int)[d length], (char*)[d bytes]);
+                    }
+                }
+            }
 	}
       [nc removeObserver: self name: nil object: sock];
       [sock closeFile];
@@ -643,7 +680,7 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
     }
   else if ([parser parse: d] == NO && [parser isComplete] == NO)
     {
-      if (YES == debug)
+      if (debug)
 	{
 	  NSLog(@"HTTP parse failure - %@", parser);
 	}
@@ -874,7 +911,7 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
 	   * lost in the network or the remote end received it and
 	   * the response was lost.
 	   */
-	  if (YES == debug)
+	  if (debug)
 	    {
 	      NSLog(@"HTTP response not received - %@", parser);
 	    }
@@ -906,7 +943,15 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
       NSLog(@"%@ %p %s", NSStringFromSelector(_cmd), self, keepalive?"K":"");
     }
   d = [dict objectForKey: NSFileHandleNotificationDataItem];
-  if (YES == debug) debugRead(self, d);
+  if (debug)
+    {
+      if (NO == [ioDelegate getBytes: [d bytes]
+                            ofLength: [d length]
+                            byHandle: self])
+        {
+          debugRead(self, d);
+        }
+    }
 
   if ([d length] > 0)
     {
@@ -969,16 +1014,67 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
   [super endLoadInBackground];
 }
 
+
+- (void) _apply
+{
+  NSString	*method;
+  NSString	*path;
+  NSString	*s;
+
+  /*
+   * Set up request - differs for proxy version unless tunneling via ssl.
+   */
+  path = [[[u fullPath] stringByTrimmingSpaces]
+    stringByAddingPercentEscapesUsingEncoding: NSUTF8StringEncoding];
+  if ([path length] == 0)
+    {
+      path = @"/";
+    }
+
+  method = [request objectForKey: GSHTTPPropertyMethodKey];
+  if (method == nil)
+    {
+      if ([wData length] > 0)
+	{
+	  method = @"POST";
+	}
+      else
+	{
+	  method = @"GET";
+	}
+    }
+
+  if ([[request objectForKey: GSHTTPPropertyProxyHostKey] length] > 0
+    && [[u scheme] isEqualToString: @"https"] == NO)
+    {
+      if ([u port] == nil)
+	{
+	  s = [[NSString alloc] initWithFormat: @"%@ http://%@%@",
+	    method, [u host], path];
+	}
+      else
+	{
+	  s = [[NSString alloc] initWithFormat: @"%@ http://%@:%@%@",
+	    method, [u host], [u port], path];
+	}
+    }
+  else    // no proxy
+    {
+      s = [[NSString alloc] initWithFormat: @"%@ %@",
+	method, path];
+    }
+
+  [self bgdApply: s];
+  RELEASE(s);
+}
+
+
 - (void) bgdConnect: (NSNotification*)notification
 {
   NSNotificationCenter	*nc = [NSNotificationCenter defaultCenter];
   NSDictionary          *userInfo = [notification userInfo];
-  NSMutableString	*s;
   NSString		*e;
-  NSString		*method;
-  NSString		*path;
 
-  RETAIN(self);
   [nc removeObserver: self
                 name: GSFileHandleConnectCompletionNotification
               object: sock];
@@ -997,7 +1093,6 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
       [self endLoadInBackground];
       [self backgroundLoadDidFailWithReason:
 	[NSString stringWithFormat: @"Failed to connect: %@", e]];
-      DESTROY(self);
       return;
     }
 
@@ -1011,17 +1106,6 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
   if (debug)
     {
       NSLog(@"%@ %p", NSStringFromSelector(_cmd), self);
-    }
-
-  /*
-   * Build HTTP request.
-   */
-
-  path = [[[u fullPath] stringByTrimmingSpaces]
-    stringByAddingPercentEscapesUsingEncoding: NSUTF8StringEncoding];
-  if ([path length] == 0)
-    {
-      path = @"/";
     }
 
   /*
@@ -1071,7 +1155,15 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
                object: sock];
 
       buf = [cmd dataUsingEncoding: NSASCIIStringEncoding];
-      if (YES == debug) debugWrite(self, buf);
+      if (debug)
+        {
+          if (NO == [ioDelegate putBytes: [buf bytes]
+                                ofLength: [buf length]
+                                byHandle: self])
+            {
+              debugWrite(self, buf);
+            }
+        }
       [sock writeInBackgroundAndNotify: buf];
 
       when = [NSDate alloc];
@@ -1094,7 +1186,6 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
 	{
 	  [self endLoadInBackground];
 	  [self backgroundLoadDidFailWithReason: @"Failed proxy tunneling"];
-	  DESTROY(self);
 	  return;
 	}
     }
@@ -1103,6 +1194,7 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
       static NSArray            *keys = nil;
       NSMutableDictionary       *opts;
       NSUInteger                count;
+      BOOL			success = NO;
 
       /* If we are an https connection, negotiate secure connection.
        * Make sure we are not an observer of the file handle while
@@ -1154,60 +1246,64 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
 
       if (debug) [opts setObject: @"YES" forKey: GSTLSDebug];
       [sock sslSetOptions: opts];
-      [opts release];
-      if ([sock sslConnect] == NO)
+      RELEASE(opts);
+      if ([sock sslHandshakeEstablished: &success outgoing: YES])
 	{
-	  if (debug)
-	    NSLog(@"%@ %p %s Failed to make ssl connect",
-	      NSStringFromSelector(_cmd), self, keepalive?"K":"");
-          [sock closeFile];
-          DESTROY(sock);
-	  [self endLoadInBackground];
-	  [self backgroundLoadDidFailWithReason:
-	    @"Failed to make ssl connect"];
-	  DESTROY(self);
+	  if (NO == success)
+	    {
+	      if (debug)
+		NSLog(@"%@ %p %s Failed to make ssl connect",
+		  NSStringFromSelector(_cmd), self, keepalive?"K":"");
+	      [self endLoadInBackground];
+	      [self backgroundLoadDidFailWithReason:
+		@"Failed to make ssl connect"];
+	      return;
+	    }
+	}
+      else
+	{
+	  [nc addObserver: self
+	         selector: @selector(bgdHandshake:)
+		     name: NSFileHandleDataAvailableNotification
+	           object: sock];
+	  [sock waitForDataInBackgroundAndNotify];
 	  return;
 	}
     }
 
-  /*
-   * Set up request - differs for proxy version unless tunneling via ssl.
-   */
-  method = [request objectForKey: GSHTTPPropertyMethodKey];
-  if (method == nil)
-    {
-      if ([wData length] > 0)
-	{
-	  method = @"POST";
-	}
-      else
-	{
-	  method = @"GET";
-	}
-    }
-  if ([[request objectForKey: GSHTTPPropertyProxyHostKey] length] > 0
-    && [[u scheme] isEqualToString: @"https"] == NO)
-    {
-      if ([u port] == nil)
-	{
-	  s = [[NSMutableString alloc] initWithFormat: @"%@ http://%@%@",
-	    method, [u host], path];
-	}
-      else
-	{
-	  s = [[NSMutableString alloc] initWithFormat: @"%@ http://%@:%@%@",
-	    method, [u host], [u port], path];
-	}
-    }
-  else    // no proxy
-    {
-      s = [[NSMutableString alloc] initWithFormat: @"%@ %@",
-	method, path];
-    }
+  [self _apply];
 
-  [self bgdApply: s];
-  RELEASE(s);
-  DESTROY(self);
+}
+
+- (void) bgdHandshake: (NSNotification*)notification
+{
+  BOOL	success = NO;
+
+  if ([sock sslHandshakeEstablished: &success outgoing: YES])
+    { 
+      if (success)
+	{
+	  NSNotificationCenter	*nc = [NSNotificationCenter defaultCenter];
+
+	  [nc removeObserver: self
+			name: NSFileHandleDataAvailableNotification
+		      object: sock];
+	  [self _apply];
+	}
+      else
+	{ 
+	  if (debug)
+	    NSLog(@"%@ %p %s Failed to make ssl connect",
+	      NSStringFromSelector(_cmd), self, keepalive?"K":"");
+	  [self endLoadInBackground];
+	  [self backgroundLoadDidFailWithReason:
+	    @"Failed to make ssl connect"];
+	}
+    }
+  else
+    {
+      [sock waitForDataInBackgroundAndNotify];
+    }
 }
 
 - (void) bgdWrite: (NSNotification*)notification
@@ -1365,6 +1461,16 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
   return old;
 }
 
+- (id<GSLogDelegate>) setDebugLogDelegate: (id<GSLogDelegate>)d
+{
+  id<GSLogDelegate>     old = ioDelegate;
+
+  NSAssert(nil == d || [d conformsToProtocol: @protocol(GSLogDelegate)],
+    NSInvalidArgumentException);
+  ioDelegate  = d;
+  return old;
+}
+
 - (void) setReturnAll: (BOOL)flag
 {
   returnAll = flag;
@@ -1466,38 +1572,14 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
     }
 
   /* An existing socket with keepalive may have been closed by the other
-   * end.  The portable way to detect it is to run the runloop once to
-   * allow us to be sent a notification about end-of-file.
-   * On unix systems (google told me it is not reliable on windows) we can
-   * simply peek on the file descriptor for a much more efficient check.
+   * end.
+   * On unix systems we can simply peek on the file descriptor for a much
+   * more efficient check.
+   * On windows we use the same system, it is noted to be inefficient but
+   * we don't care because we peek rare enough at each HTTP request.
    */
   if (sock != nil)
     {
-#if	defined(_WIN32)
-      NSNotificationCenter	*nc = [NSNotificationCenter defaultCenter];
-      NSRunLoop			*loop = [NSRunLoop currentRunLoop];
-      NSFileHandle		*test = RETAIN(sock);
-      
-      if (debug)
-        {
-	  NSLog(@"%@ %p check for reusable socket",
-	    NSStringFromSelector(_cmd), self);
-	}
-      [nc addObserver: self
-	     selector: @selector(bgdRead:)
-		 name: NSFileHandleReadCompletionNotification
-	       object: test];
-      if ([test readInProgress] == NO)
-	{
-	  [test readInBackgroundAndNotify];
-	}
-      [loop acceptInputForMode: NSDefaultRunLoopMode
-		    beforeDate: nil];
-      [nc removeObserver: self
-		    name: nil
-		  object: test];
-      RELEASE(test);
-#else
       int fd = [sock fileDescriptor];
 
       if (debug)
@@ -1513,7 +1595,7 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
 #if     !defined(MSG_DONTWAIT)
 #define MSG_DONTWAIT    0
 #endif
-	  result = recv(fd, &c, 1, MSG_PEEK | MSG_DONTWAIT);
+	  result = recv(fd, (void *)&c, 1, MSG_PEEK | MSG_DONTWAIT);
 	  if (result == 0 || (result < 0 && errno != EAGAIN && errno != EINTR))
 	    {
 	      DESTROY(sock);
@@ -1523,7 +1605,6 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
         {
 	  DESTROY(sock);
 	}
-#endif
       if (debug)
 	{
 	  if (sock == nil)
@@ -1566,8 +1647,8 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
 
 	      if (sslClass == 0)
 		{
-		  [self backgroundLoadDidFailWithReason:
-		    @"https not supported ... needs SSL bundle"];
+		  [self backgroundLoadDidFailWithReason: @"https not supported"
+		    @" ... needs gnustep-base built with GNUTLS"];
 		  return;
 		}
 	      sock = [sslClass fileHandleAsClientInBackgroundAtAddress: host
@@ -1612,8 +1693,8 @@ debugWrite(GSHTTPURLHandle *handle, NSData *data)
 	    {
 	      if (sslClass == 0)
 		{
-		  [self backgroundLoadDidFailWithReason:
-		    @"https not supported ... needs SSL bundle"];
+		  [self backgroundLoadDidFailWithReason: @"https not supported"
+		    @" ... needs gnustep-base built with GNUTLS"];
 		  return;
 		}
 	      host = [request objectForKey: GSHTTPPropertyProxyHostKey];

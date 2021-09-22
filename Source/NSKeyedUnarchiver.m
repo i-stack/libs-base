@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
    */
 
@@ -53,12 +53,6 @@
 @end
 @implementation NilMarker
 @end
-
-/**
- * An unarchiving error has occurred.
- */
-NSString * const NSInvalidUnarchiveOperationException
-  = @"NSInvalidUnarchiveOperationException";
 
 static NSMapTable	*globalClassMap = 0;
 
@@ -367,12 +361,12 @@ static NSMapTable	*globalClassMap = 0;
 
 - (BOOL)requiresSecureCoding
 {
-  return NO;
+  return _requiresSecureCoding;
 }
 
 - (void)setRequiresSecureCoding: (BOOL)secure
 {
-  return;
+  _requiresSecureCoding = secure;
 }
 
 - (Class) classForClassName: (NSString*)aString
@@ -758,7 +752,7 @@ static NSMapTable	*globalClassMap = 0;
 	*(double*)address = [o doubleValue];
 	return;
 
-#if __GNUC__ > 2 && defined(_C_BOOL)
+#if defined(_C_BOOL) && (!defined(__GNUC__) || __GNUC__ > 2)
       case _C_BOOL:
 	*(_Bool*)address = (_Bool)[o unsignedCharValue];
 	return;

@@ -18,12 +18,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
    
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
    */ 
 
 #import "common.h"
@@ -38,6 +38,7 @@
 #import "Foundation/NSPredicate.h"
 
 #import "Foundation/NSArray.h"
+#import "Foundation/NSDate.h"
 #import "Foundation/NSDictionary.h"
 #import "Foundation/NSEnumerator.h"
 #import "Foundation/NSException.h"
@@ -53,6 +54,8 @@
 
 #if     defined(HAVE_UNICODE_UREGEX_H)
 #include <unicode/uregex.h>
+#elif   defined(HAVE_ICU_H)
+#include <icu.h>
 #endif
 
 /* Object to represent the expression beign evaluated.
@@ -890,6 +893,18 @@ GSICUStringMatchesRegex(NSString *string, NSString *regex, NSStringCompareOption
 }
 #endif
 
+- (double) doubleValueFor: (id)value
+{
+  if ([value isKindOfClass: [NSDate class]])
+    {
+      return [(NSDate*)value timeIntervalSinceReferenceDate];
+    }
+  else
+    {
+      return [value doubleValue];
+    }
+}
+
 - (BOOL) _evaluateLeftValue: (id)leftResult
 		 rightValue: (id)rightResult
 		     object: (id)object
@@ -941,26 +956,26 @@ GSICUStringMatchesRegex(NSString *string, NSString *regex, NSStringCompareOption
     {
       case NSLessThanPredicateOperatorType:
         {
-          double ld = [leftResult doubleValue];
-          double rd = [rightResult doubleValue];
+          double ld = [self doubleValueFor: leftResult];
+          double rd = [self doubleValueFor: rightResult];
           return (ld < rd) ? YES : NO;
         }
       case NSLessThanOrEqualToPredicateOperatorType:
         {
-          double ld = [leftResult doubleValue];
-          double rd = [rightResult doubleValue];
+          double ld = [self doubleValueFor: leftResult];
+          double rd = [self doubleValueFor: rightResult];
           return (ld <= rd) ? YES : NO;
         }
       case NSGreaterThanPredicateOperatorType:
         {
-          double ld = [leftResult doubleValue];
-          double rd = [rightResult doubleValue];
+          double ld = [self doubleValueFor: leftResult];
+          double rd = [self doubleValueFor: rightResult];
           return (ld > rd) ? YES : NO;
         }
       case NSGreaterThanOrEqualToPredicateOperatorType:
         {
-          double ld = [leftResult doubleValue];
-          double rd = [rightResult doubleValue];
+          double ld = [self doubleValueFor: leftResult];
+          double rd = [self doubleValueFor: rightResult];
           return (ld >= rd) ? YES : NO;
         }
       case NSEqualToPredicateOperatorType:
@@ -1312,6 +1327,11 @@ GSICUStringMatchesRegex(NSString *string, NSString *regex, NSStringCompareOption
        */
       GSPropertyListMake(_obj, nil, NO, YES, 2, &result);
       return result;
+    }
+  else if ([_obj isKindOfClass: [NSDate class]])
+    {
+      return [NSString stringWithFormat: @"CAST(%15.6f, \"NSDate\")",
+                       [(NSDate*)_obj timeIntervalSinceReferenceDate]];
     }
   return [_obj description];
 }
@@ -1718,6 +1738,21 @@ GSICUStringMatchesRegex(NSString *string, NSString *regex, NSStringCompareOption
       sum += [o doubleValue];
     }
   return [NSNumber numberWithDouble: sum];
+}
+
+- (id) _eval_CAST: (NSArray *)expressions
+{
+  id left = [expressions objectAtIndex: 0];
+  id right = [expressions objectAtIndex: 1];
+
+  if ([right isEqualToString: @"NSDate"])
+    {
+      return [NSDate dateWithTimeIntervalSinceReferenceDate:
+	[left doubleValue]];
+    }
+
+  NSLog(@"Cast to unknown type %@", right);
+  return nil;
 }
 
 // add arithmetic functions: average, median, mode, stddev, sqrt, log, ln, exp, floor, ceiling, abs, trunc, random, randomn, now

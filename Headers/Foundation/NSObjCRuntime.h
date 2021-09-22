@@ -14,12 +14,12 @@
    This library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
+   Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
    License along with this library; if not, write to the Free
    Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
-   Boston, MA 02111 USA.
+   Boston, MA 02110 USA.
 
     AutogsdocSource: NSObjCRuntime.m
     AutogsdocSource: NSLog.m
@@ -279,6 +279,11 @@ DEFINE_BLOCK_TYPE(NSComparator, NSComparisonResult, id, id);
  */
 #define FOUNDATION_EXPORT GS_EXPORT
 
+/**
+ * Declare NSExceptionName
+ */
+typedef NSString* NSExceptionName;
+  
 #if	defined(__cplusplus)
 }
 #endif
@@ -308,6 +313,11 @@ DEFINE_BLOCK_TYPE(NSComparator, NSComparisonResult, id, id);
 #else
 #define NS_ROOT_CLASS
 #endif
+#endif
+
+/* Undefine "interface" defined in Visual Studio MSVC headers. */
+#if defined(_MSC_VER) && defined(interface)
+#undef interface
 #endif
 
 #endif /* __NSObjCRuntime_h_GNUSTEP_BASE_INCLUDE */

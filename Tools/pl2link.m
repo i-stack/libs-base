@@ -32,6 +32,10 @@
 #import	"Foundation/NSProcessInfo.h"
 #import "Foundation/NSPathUtilities.h"
 
+#ifdef _MSC_VER
+#define popen _popen
+#endif
+
 int
 main(int argc, char** argv, char **env)
 {
@@ -119,6 +123,7 @@ main(int argc, char** argv, char **env)
     {
       appName = entry;
       [fileContents appendFormat: @"Name=%@\n", entry];
+      [fileContents appendFormat: @"StartupWMClass=%@\n", entry];
       if (destName == nil)
 	destName = [entry stringByAppendingString: @".desktop"];
     }
