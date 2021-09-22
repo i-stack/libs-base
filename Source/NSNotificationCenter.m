@@ -279,30 +279,25 @@ obsNew(NCTable *t, SEL s, id o)
    * very frequently (poor design, but something which happens in the
    * real world unfortunately).
    */
-  if (t->freeList == 0)
-    {
+  if (t->freeList == 0) {
       Observation	*block;
+      if (t->chunkIndex == CHUNKSIZE){
+          unsigned	size;
+          
+          t->numChunks++;
 
-      if (t->chunkIndex == CHUNKSIZE)
-	{
-	  unsigned	size;
+          size = t->numChunks * sizeof(Observation*);
+          t->chunks = (Observation**)NSReallocateCollectable(t->chunks, size, NSScannedOption);
 
-	  t->numChunks++;
-
-	  size = t->numChunks * sizeof(Observation*);
-	  t->chunks = (Observation**)NSReallocateCollectable(
-	    t->chunks, size, NSScannedOption);
-
-	  size = CHUNKSIZE * sizeof(Observation);
-	  t->chunks[t->numChunks - 1]
-	    = (Observation*)NSAllocateCollectable(size, 0);
-	  t->chunkIndex = 0;
-	}
+          size = CHUNKSIZE * sizeof(Observation);
+          t->chunks[t->numChunks - 1] = (Observation*)NSAllocateCollectable(size, 0);
+          t->chunkIndex = 0;
+      }
       block = t->chunks[t->numChunks - 1];
       t->freeList = &block[t->chunkIndex];
       t->chunkIndex++;
       t->freeList->link = 0;
-    }
+  }
   obs = t->freeList;
   t->freeList = (Observation*)obs->link;
   obs->link = (void*)t;
@@ -772,99 +767,83 @@ static NSNotificationCenter *default_center = nil;
                 name: (NSString*)name
 	      object: (id)object
 {
-  Observation	*list;
-  Observation	*o;
-  GSIMapTable	m;
-  GSIMapNode	n;
+    Observation	*list;
+    Observation	*o;
+    GSIMapTable	m;
+    GSIMapNode	n;
 
-  if (observer == nil)
-    [NSException raise: NSInvalidArgumentException
-		format: @"Nil observer passed to addObserver ..."];
+    if (observer == nil)
+        [NSException raise: NSInvalidArgumentException
+                    format: @"Nil observer passed to addObserver ..."];
 
-  if (selector == 0)
-    [NSException raise: NSInvalidArgumentException
-		format: @"Null selector passed to addObserver ..."];
+    if (selector == 0)
+        [NSException raise: NSInvalidArgumentException
+                    format: @"Null selector passed to addObserver ..."];
 
-  if ([observer respondsToSelector: selector] == NO)
-    {
-      [NSException raise: NSInvalidArgumentException
-        format: @"[%@-%@] Observer '%@' does not respond to selector '%@'",
-        NSStringFromClass([self class]), NSStringFromSelector(_cmd),
-        observer, NSStringFromSelector(selector)];
+    if ([observer respondsToSelector: selector] == NO)
+        [NSException raise: NSInvalidArgumentException
+                    format: @"[%@-%@] Observer '%@' does not respond to selector '%@'",
+                    NSStringFromClass([self class]),
+                    NSStringFromSelector(_cmd),
+                    observer, NSStringFromSelector(selector)];
+
+    lockNCTable(TABLE);
+
+    o = obsNew(TABLE, selector, observer);
+
+    /*
+    * Record the Observation in one of the linked lists.
+    *
+    * NB. It is possible to register an observer for a notification more than
+    * once - in which case, the observer will receive multiple messages when
+    * the notification is posted... odd, but the MacOS-X docs specify this.
+    */
+
+    if (name) {
+        /*
+        * Locate the map table for this name - create it if not present.
+        */
+        n = GSIMapNodeForKey(NAMED, (GSIMapKey)(id)name);
+        if (n == 0) {
+            m = mapNew(TABLE);
+            /*
+            * As this is the first observation for the given name, we take a
+            * copy of the name so it cannot be mutated while in the map.
+            */
+            name = [name copyWithZone: NSDefaultMallocZone()];
+            GSIMapAddPair(NAMED, (GSIMapKey)(id)name, (GSIMapVal)(void*)m);
+            GS_CONSUMED(name)
+        } else {
+            m = (GSIMapTable)n->value.ptr;
+        }
+
+        /*
+        * Add the observation to the list for the correct object.
+        */
+        n = GSIMapNodeForSimpleKey(m, (GSIMapKey)object);
+        if (n == 0) {
+            o->next = ENDOBS;
+            GSIMapAddPair(m, (GSIMapKey)object, (GSIMapVal)o);
+        } else {
+            list = (Observation*)n->value.ptr;
+            o->next = list->next;
+            list->next = o;
+        }
+    } else if (object) {
+        n = GSIMapNodeForSimpleKey(NAMELESS, (GSIMapKey)object);
+        if (n == 0) {
+            o->next = ENDOBS;
+            GSIMapAddPair(NAMELESS, (GSIMapKey)object, (GSIMapVal)o);
+        } else {
+            list = (Observation*)n->value.ptr;
+            o->next = list->next;
+            list->next = o;
+        }
+    } else {
+        o->next = WILDCARD;
+        WILDCARD = o;
     }
-
-  lockNCTable(TABLE);
-
-  o = obsNew(TABLE, selector, observer);
-
-  /*
-   * Record the Observation in one of the linked lists.
-   *
-   * NB. It is possible to register an observer for a notification more than
-   * once - in which case, the observer will receive multiple messages when
-   * the notification is posted... odd, but the MacOS-X docs specify this.
-   */
-
-  if (name)
-    {
-      /*
-       * Locate the map table for this name - create it if not present.
-       */
-      n = GSIMapNodeForKey(NAMED, (GSIMapKey)(id)name);
-      if (n == 0)
-	{
-	  m = mapNew(TABLE);
-	  /*
-	   * As this is the first observation for the given name, we take a
-	   * copy of the name so it cannot be mutated while in the map.
-	   */
-	  name = [name copyWithZone: NSDefaultMallocZone()];
-	  GSIMapAddPair(NAMED, (GSIMapKey)(id)name, (GSIMapVal)(void*)m);
-	  GS_CONSUMED(name)
-	}
-      else
-	{
-	  m = (GSIMapTable)n->value.ptr;
-	}
-
-      /*
-       * Add the observation to the list for the correct object.
-       */
-      n = GSIMapNodeForSimpleKey(m, (GSIMapKey)object);
-      if (n == 0)
-	{
-	  o->next = ENDOBS;
-	  GSIMapAddPair(m, (GSIMapKey)object, (GSIMapVal)o);
-	}
-      else
-	{
-	  list = (Observation*)n->value.ptr;
-	  o->next = list->next;
-	  list->next = o;
-	}
-    }
-  else if (object)
-    {
-      n = GSIMapNodeForSimpleKey(NAMELESS, (GSIMapKey)object);
-      if (n == 0)
-	{
-	  o->next = ENDOBS;
-	  GSIMapAddPair(NAMELESS, (GSIMapKey)object, (GSIMapVal)o);
-	}
-      else
-	{
-	  list = (Observation*)n->value.ptr;
-	  o->next = list->next;
-	  list->next = o;
-	}
-    }
-  else
-    {
-      o->next = WILDCARD;
-      WILDCARD = o;
-    }
-
-  unlockNCTable(TABLE);
+    unlockNCTable(TABLE);
 }
 
 /**
